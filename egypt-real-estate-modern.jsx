@@ -1,0 +1,108 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import Navigation from './components/Navigation';
+import Hero from './components/Hero';
+import PersonalIntro from './components/PersonalIntro';
+import Properties from './components/Properties';
+import Process from './components/Process';
+import About from './components/About';
+import Reviews from './components/Reviews';
+import Contact from './components/Contact';
+import Footer from './components/Footer';
+import WhatsAppButton from './components/WhatsAppButton';
+import { translations } from './content/translations';
+import { globalStyles } from './styles/globalStyles';
+
+const EgyptRealEstate = () => {
+  const [language, setLanguage] = useState('cz');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: '',
+  });
+
+  const t = useMemo(() => translations[language], [language]);
+
+  const smoothScrollTo = (targetY, duration = 700) => {
+    const startY = window.scrollY || window.pageYOffset;
+    const delta = targetY - startY;
+    const startTime = performance.now();
+
+    const easeOutQuad = (t) => t * (2 - t);
+
+    const step = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutQuad(progress);
+      window.scrollTo(0, startY + delta * eased);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const offset = 80; // header height
+      const targetY = rect.top + window.scrollY - offset;
+      smoothScrollTo(targetY, 800);
+    }
+    setMobileOpen(false);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    alert(t.contact.form.success);
+    setFormData({ name: '', email: '', phone: '', message: '' });
+  };
+
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  return (
+    <div className="page">
+      <style>{globalStyles}</style>
+
+      <Navigation
+        t={t}
+        language={language}
+        onLanguageChange={setLanguage}
+        onNavigate={scrollToSection}
+        mobileOpen={mobileOpen}
+        onToggleMobile={() => setMobileOpen((prev) => !prev)}
+      />
+
+      <main>
+        <Hero
+          t={t}
+          language={language}
+          onPrimaryCta={() => scrollToSection('contact')}
+          onSecondaryCta={() => scrollToSection('properties')}
+        />
+        <PersonalIntro t={t} onConsult={() => scrollToSection('contact')} />
+        <Properties t={t} />
+        <Process t={t} />
+        <About t={t} language={language} />
+        <Reviews t={t} />
+        <Contact
+          t={t}
+          language={language}
+          formData={formData}
+          onChange={handleChange}
+          onSubmit={handleSubmit}
+        />
+      </main>
+
+      <Footer t={t} onNavigate={scrollToSection} />
+      <WhatsAppButton />
+    </div>
+  );
+};
+
+export default EgyptRealEstate;

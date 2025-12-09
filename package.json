@@ -1,0 +1,30 @@
+{
+  "name": "reality",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Witryx/reality.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Witryx/reality/issues"
+  },
+  "homepage": "https://github.com/Witryx/reality#readme",
+  "dependencies": {
+    "lucide-react": "^0.556.0",
+    "next": "^16.0.7",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
+  }
+}

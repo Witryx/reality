@@ -1,0 +1,17 @@
+export const palette = {
+  navy: '#0f2c4d',
+  navyDeep: '#0b2038',
+  sky: '#2f6fa3',
+  sand: '#f6f8f3',
+  mint: '#eef6f1',
+  text: '#1f2c3b',
+  textMuted: '#6b7a8a',
+  accent: '#f29c4b',
+  accentSoft: '#f7b26f',
+  border: 'rgba(15, 44, 77, 0.12)',
+  card: '#ffffff',
+  shadow: '0 18px 40px rgba(12, 35, 64, 0.12)',
+  gradient: 'linear-gradient(135deg, #0f2c4d 0%, #1c3f65 45%, #2f6fa3 100%)',
+  heroOverlay: 'linear-gradient(120deg, rgba(15,44,77,0.95) 0%, rgba(15,44,77,0.85) 55%, rgba(47,111,163,0.65) 100%)',
+  softGradient: 'radial-gradient(circle at 20% 20%, rgba(242,156,75,0.16), transparent 36%), radial-gradient(circle at 85% 10%, rgba(47,111,163,0.18), transparent 45%)',
+};
