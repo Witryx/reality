@@ -5,3 +5,6 @@ dist/
 npm-debug.log*
 .yarn/
 .vercel/
+.env
+.env.local
+.env.*
