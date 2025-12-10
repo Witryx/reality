@@ -11,10 +11,6 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
   <section id="top" className="hero">
     <div className="container hero-grid">
       <div className="hero-copy">
-        <div className="pill" style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.25)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <Star size={16} color="#f7c288" />
-          <span style={{ color: '#fff', fontWeight: 700 }}>{t.hero.eyebrow}</span>
-        </div>
         <h1 className="display">{t.hero.title}</h1>
         <p className="subtitle" style={{ textAlign: 'left' }}>
           {t.hero.subtitle}

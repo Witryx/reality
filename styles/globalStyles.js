@@ -187,11 +187,11 @@ export const globalStyles = `
   .nav {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 14px 22px;
+    padding: 12px 18px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
+    gap: 20px;
   }
 
   .nav-left { display: flex; align-items: center; gap: 14px; }
@@ -725,9 +725,12 @@ export const globalStyles = `
 
   @media (max-width: 720px) {
     .section { padding: 90px 20px; }
-    .hero { padding-top: 130px; }
-    .btn-row { width: 100%; }
-    .btn-primary, .btn-secondary { flex: 1; justify-content: center; }
+    .hero { padding-top: 120px; }
+    .nav { padding: 10px 14px; gap: 12px; }
+    .brand-mark { width: 40px; height: 40px; }
+    .brand-name { font-size: 18px; }
+    .btn-row { width: 100%; flex-direction: column; align-items: stretch; }
+    .btn-primary, .btn-secondary { flex: 1; justify-content: center; width: 100%; }
     .listing-thumb { height: 200px; }
     .hero-media img { height: 340px; }
     .personal-grid { gap: 16px; }
