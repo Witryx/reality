@@ -68,30 +68,6 @@ const Process = ({ t }) => (
         </div>
       ))}
 
-      <div className="cta-banner" style={{ marginTop: 32 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-            {t.hero.title}
-          </div>
-          <div style={{ color: '#dfe8f5' }}>{t.hero.subtitle}</div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            className="btn-secondary"
-            style={{
-              background: '#fff',
-              color: 'var(--navy)',
-              borderColor: 'rgba(255,255,255,0.3)',
-              boxShadow: '0 12px 24px rgba(0,0,0,0.08)',
-            }}
-          >
-            {t.hero.cta2}
-          </button>
-          <button className="btn-primary" style={{ background: 'var(--accent)', color: '#fff' }}>
-            {t.hero.cta1}
-          </button>
-        </div>
-      </div>
     </div>
   </section>
 );
