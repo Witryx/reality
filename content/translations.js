@@ -20,13 +20,14 @@ export const translations = {
         'Bezpečná právní a finanční kontrola',
       ],
     },
-    properties: {
-      title: 'Aktuální nabídka nemovitostí',
-      subtitle:
-        'Pečlivě vybrané projekty v Hurghadě, Sharmu, El Gouně a dalších prémiových lokalitách. Ideální pro vlastní bydlení i investice.',
-      sqm: 'm²',
-      rooms: 'pokoje',
-      detail: 'Detail nemovitosti',
+      properties: {
+        title: 'Aktuální nabídka nemovitostí',
+        subtitle:
+          'Pečlivě vybrané projekty v Hurghadě, Sharmu, El Gouně a dalších prémiových lokalitách. Ideální pro vlastní bydlení i investice.',
+        sqm: 'm²',
+        rooms: 'pokoje',
+        detail: 'Detail nemovitosti',
+        toggles: { active: 'Aktuální', sold: 'Prodané' },
         items: [
           {
             name: 'Penthouse Azure Lagoon',
@@ -82,12 +83,41 @@ export const translations = {
           location: 'Sharm El Sheikh',
           price: '1 780 000 Kč',
           sqm: '56',
-          rooms: '1',
-          image:
-            'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
-        },
-      ],
-    },
+            rooms: '1',
+            image:
+              'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
+          },
+        ],
+        soldItems: [
+          {
+            name: 'Rezidence Marina Vista',
+            location: 'Hurghada Marina',
+            price: 'Prodáno',
+            sqm: '110',
+            rooms: '3',
+            tag: 'Prodáno',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop',
+          },
+          {
+            name: 'Vila Palm Court',
+            location: 'Sahl Hasheesh',
+            price: 'Prodáno',
+            sqm: '240',
+            rooms: '5',
+            tag: 'Prodáno',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-20',
+          },
+          {
+            name: 'Apartmán Blue Reef',
+            location: 'Sharm El Sheikh',
+            price: 'Prodáno',
+            sqm: '72',
+            rooms: '2',
+            tag: 'Prodáno',
+            image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=650&fit=crop',
+          },
+        ],
+      },
     howItWorks: {
       title: 'Jak probíhá spolupráce',
       subtitle:
@@ -128,6 +158,18 @@ export const translations = {
     reviews: {
       title: 'Reference klientů',
       subtitle: 'Reálné zkušenosti klientů z Česka, Německa i Británie.',
+      form: {
+        title: 'Napište recenzi bez přihlášení',
+        name: 'Jméno',
+        location: 'Město / země (volitelně)',
+        rating: 'Hodnocení',
+        text: 'Vaše zkušenost',
+        submit: 'Odeslat recenzi',
+        helper: 'Recenzi zveřejníme po rychlé kontrole spamu.',
+        success: 'Díky! Recenzi jsme uložili a brzy ji zveřejníme.',
+        error: 'Nepodařilo se uložit recenzi. Zkuste to prosím znovu.',
+      },
+      empty: 'Zatím tu nejsou žádné recenze. Přidejte svou jako první.',
       items: [
         {
           name: 'Jana a Petr Svobodovi',
@@ -209,13 +251,14 @@ export const translations = {
         'Verified legal and financial partners',
       ],
     },
-    properties: {
-      title: 'Current property listings',
-      subtitle:
-        'Curated homes and investments in Hurghada, Sharm, El Gouna and Soma Bay. Designed for lifestyle buyers and investors alike.',
-      sqm: 'sqm',
-      rooms: 'rooms',
-      detail: 'Property details',
+      properties: {
+        title: 'Current property listings',
+        subtitle:
+          'Curated homes and investments in Hurghada, Sharm, El Gouna and Soma Bay. Designed for lifestyle buyers and investors alike.',
+        sqm: 'sqm',
+        rooms: 'rooms',
+        detail: 'Property details',
+        toggles: { active: 'Available', sold: 'Sold' },
         items: [
           {
             name: 'Azure Lagoon Penthouse',
@@ -270,12 +313,41 @@ export const translations = {
           location: 'Sharm El Sheikh',
           price: '€69,000',
           sqm: '56',
-          rooms: '1',
-          image:
-            'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
-        },
-      ],
-    },
+            rooms: '1',
+            image:
+              'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
+          },
+        ],
+        soldItems: [
+          {
+            name: 'Marina Vista Residence',
+            location: 'Hurghada Marina',
+            price: 'Sold',
+            sqm: '110',
+            rooms: '3',
+            tag: 'Sold',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop',
+          },
+          {
+            name: 'Palm Court Villa',
+            location: 'Sahl Hasheesh',
+            price: 'Sold',
+            sqm: '240',
+            rooms: '5',
+            tag: 'Sold',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-20',
+          },
+          {
+            name: 'Blue Reef Apartment',
+            location: 'Sharm El Sheikh',
+            price: 'Sold',
+            sqm: '72',
+            rooms: '2',
+            tag: 'Sold',
+            image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=650&fit=crop',
+          },
+        ],
+      },
     howItWorks: {
       title: 'How we work together',
       subtitle:
@@ -316,6 +388,18 @@ export const translations = {
     reviews: {
       title: 'Client reviews',
       subtitle: 'Straightforward feedback from buyers and investors.',
+      form: {
+        title: 'Leave a review (no sign-in)',
+        name: 'Name',
+        location: 'City / country (optional)',
+        rating: 'Rating',
+        text: 'Your experience',
+        submit: 'Submit review',
+        helper: 'We publish after a quick spam check.',
+        success: 'Thanks! Your review is saved and will appear soon.',
+        error: 'Could not save the review. Please try again.',
+      },
+      empty: 'No reviews yet. Be the first to share your experience.',
       items: [
         {
           name: 'Jana & Petr Svoboda',
@@ -398,13 +482,14 @@ export const translations = {
         'Geprüfte Anwälte und Finanzpartner',
       ],
     },
-    properties: {
-      title: 'Aktuelle Immobilienangebote',
-      subtitle:
-        'Kuratiertes Portfolio in Hurghada, Sharm, El Gouna und Soma Bay. Ideal für Eigennutzer und Investoren.',
-      sqm: 'm²',
-      rooms: 'Zimmer',
-      detail: 'Immobiliendetails',
+      properties: {
+        title: 'Aktuelle Immobilienangebote',
+        subtitle:
+          'Kuratiertes Portfolio in Hurghada, Sharm, El Gouna und Soma Bay. Ideal für Eigennutzer und Investoren.',
+        sqm: 'm²',
+        rooms: 'Zimmer',
+        detail: 'Immobiliendetails',
+        toggles: { active: 'Verfügbar', sold: 'Verkauft' },
         items: [
           {
             name: 'Penthouse Azure Lagoon',
@@ -459,12 +544,41 @@ export const translations = {
           location: 'Sharm El Sheikh',
           price: '69.000 €',
           sqm: '56',
-          rooms: '1',
-          image:
-            'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
-        },
-      ],
-    },
+            rooms: '1',
+            image:
+              'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-10',
+          },
+        ],
+        soldItems: [
+          {
+            name: 'Residenz Marina Vista',
+            location: 'Hurghada Marina',
+            price: 'Verkauft',
+            sqm: '110',
+            rooms: '3',
+            tag: 'Verkauft',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop',
+          },
+          {
+            name: 'Villa Palm Court',
+            location: 'Sahl Hasheesh',
+            price: 'Verkauft',
+            sqm: '240',
+            rooms: '5',
+            tag: 'Verkauft',
+            image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900&h=650&fit=crop&sat=-20',
+          },
+          {
+            name: 'Apartment Blue Reef',
+            location: 'Sharm El Sheikh',
+            price: 'Verkauft',
+            sqm: '72',
+            rooms: '2',
+            tag: 'Verkauft',
+            image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=650&fit=crop',
+          },
+        ],
+      },
     howItWorks: {
       title: 'Wie die Zusammenarbeit abläuft',
       subtitle:
@@ -505,6 +619,18 @@ export const translations = {
     reviews: {
       title: 'Kundenreferenzen',
       subtitle: 'Echte Rückmeldungen von Käufern und Investoren.',
+      form: {
+        title: 'Bewertung abgeben (ohne Login)',
+        name: 'Name',
+        location: 'Stadt / Land (optional)',
+        rating: 'Bewertung',
+        text: 'Ihre Erfahrung',
+        submit: 'Bewertung senden',
+        helper: 'Wir veröffentlichen nach kurzem Spam-Check.',
+        success: 'Danke! Ihre Bewertung wurde gespeichert und erscheint in Kürze.',
+        error: 'Speichern fehlgeschlagen. Bitte erneut versuchen.',
+      },
+      empty: 'Noch keine Bewertungen. Teilen Sie Ihre als Erste/r.',
       items: [
         {
           name: 'Jana & Petr Svoboda',

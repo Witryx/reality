@@ -89,7 +89,7 @@ const EgyptRealEstate = () => {
         <Properties t={t} />
         <Process t={t} />
         <About t={t} language={language} />
-        <Reviews t={t} />
+        <Reviews t={t} language={language} />
         <Contact
           t={t}
           language={language}

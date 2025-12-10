@@ -622,6 +622,73 @@ export const globalStyles = `
   .review-card:hover { transform: translateY(-4px); box-shadow: 0 20px 38px rgba(15,44,77,0.15); }
   .review-meta { color: #333; font-size: 14px; }
 
+  .reviews-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.95fr) 1.05fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .review-form-card {
+    background: #fff;
+    border: 1px solid rgba(15,44,77,0.08);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 18px 32px rgba(15,44,77,0.12);
+  }
+
+  .review-list { display: grid; gap: 16px; }
+
+  .review-rating {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .star-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(15,44,77,0.12);
+    background: #f7f9fb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  .star-button:hover { transform: translateY(-1px); border-color: rgba(199,160,79,0.9); box-shadow: 0 8px 18px rgba(199,160,79,0.2); }
+  .rating-value { font-size: 13px; color: var(--muted); margin-left: 6px; }
+
+  .review-status {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f7f9fb;
+    border: 1px solid rgba(15,44,77,0.08);
+    color: var(--text);
+    margin: 8px 0;
+  }
+
+  .review-status.error { background: #fff4f4; color: #b42318; border-color: rgba(180,35,24,0.35); }
+  .review-status.success { background: #f3f8ef; color: #2b7a0b; border-color: rgba(43,122,11,0.35); }
+  .review-status.helper { background: #f7f9fb; color: var(--muted); border-style: dashed; }
+
+  .review-empty {
+    padding: 18px;
+    border: 1px dashed rgba(15,44,77,0.18);
+    border-radius: 14px;
+    color: var(--muted);
+    background: #f9fbfd;
+  }
+
+  @media (max-width: 960px) {
+    .reviews-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .contact-grid {
     display: grid;
     grid-template-columns: 0.95fr 1.05fr;

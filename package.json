@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/Witryx/reality#readme",
   "dependencies": {
+    "@vercel/postgres": "^0.10.0",
     "lucide-react": "^0.556.0",
     "next": "^16.0.7",
     "react": "^19.2.1",
