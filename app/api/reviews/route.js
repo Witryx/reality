@@ -6,10 +6,19 @@ export const runtime = 'nodejs';
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const language = searchParams.get('lang') || 'cz';
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const pageSize = Math.max(1, Math.min(Number(searchParams.get('pageSize')) || 9, 50));
+  const offset = (page - 1) * pageSize;
 
   try {
-    const reviews = await fetchReviews(language);
-    return NextResponse.json({ reviews });
+    const { rows, total, average } = await fetchReviews({ language, limit: pageSize, offset });
+    return NextResponse.json({
+      reviews: rows,
+      total,
+      average,
+      page,
+      pageSize,
+    });
   } catch (error) {
     console.error('GET /api/reviews', error);
     return NextResponse.json(

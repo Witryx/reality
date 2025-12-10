@@ -10,8 +10,26 @@ const loadingMessages = {
   de: 'Bewertungen werden geladen...',
 };
 
+const avgLabel = {
+  cz: 'Průměrné hodnocení',
+  en: 'Average rating',
+  de: 'Durchschnittsbewertung',
+};
+
+const countLabel = {
+  cz: 'recenzí',
+  en: 'reviews',
+  de: 'Bewertungen',
+};
+
 const Reviews = ({ t, language }) => {
   const fallbackReviews = useMemo(() => t.reviews.items || [], [t]);
+  const fallbackAverage = useMemo(() => {
+    if (!fallbackReviews.length) return 0;
+    const sum = fallbackReviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+    return Math.round((sum / fallbackReviews.length) * 10) / 10;
+  }, [fallbackReviews]);
+
   const [reviews, setReviews] = useState(fallbackReviews);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -19,6 +37,10 @@ const Reviews = ({ t, language }) => {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 9;
+  const [total, setTotal] = useState(fallbackReviews.length);
+  const [average, setAverage] = useState(fallbackAverage);
 
   useEffect(() => {
     setReviews(fallbackReviews);
@@ -26,7 +48,10 @@ const Reviews = ({ t, language }) => {
     setFormError('');
     setFormSuccess('');
     setLoadError('');
-  }, [fallbackReviews, language]);
+    setPage(1);
+    setTotal(fallbackReviews.length);
+    setAverage(fallbackAverage);
+  }, [fallbackReviews, language, fallbackAverage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,18 +59,29 @@ const Reviews = ({ t, language }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/reviews?lang=${language}`, { signal: controller.signal });
+        const res = await fetch(`/api/reviews?lang=${language}&page=${page}&pageSize=${pageSize}`, {
+          signal: controller.signal,
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || 'load_failed');
         const incoming = Array.isArray(data.reviews) ? data.reviews : [];
+
         if (incoming.length) {
           setReviews(incoming);
+        } else {
+          setReviews(fallbackReviews);
         }
+
+        setTotal(Number(data.total || incoming.length || fallbackReviews.length));
+        setAverage(Number(data.average || fallbackAverage));
       } catch (error) {
         if (error.name !== 'AbortError') {
           const fallbackMessage = t.reviews.form?.error || 'Nepodařilo se načíst recenze.';
           const message = error.message && error.message !== 'load_failed' ? error.message : fallbackMessage;
           setLoadError(message);
+          setReviews(fallbackReviews);
+          setTotal(fallbackReviews.length);
+          setAverage(fallbackAverage);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -57,7 +93,7 @@ const Reviews = ({ t, language }) => {
     load();
 
     return () => controller.abort();
-  }, [language, t]);
+  }, [language, page, pageSize, t, fallbackReviews, fallbackAverage]);
 
   const onChange = (field) => (e) => {
     const value = field === 'rating' ? Number(e.target.value) : e.target.value;
@@ -83,18 +119,27 @@ const Reviews = ({ t, language }) => {
         throw new Error(data?.error || 'Request failed');
       }
 
-      if (data.review) {
-        setReviews((prev) => [data.review, ...prev]);
-      }
-
       setFormSuccess(t.reviews.form?.success || 'Review saved.');
       setForm({ ...initialFormState });
+      setPage(1); // skočit na první stranu a znovu načíst, aby nová recenze byla nahoře
     } catch (error) {
       setFormError(error.message || t.reviews.form?.error);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
+  const nextPage = () => setPage((p) => Math.min(totalPages, p + 1));
+  const prevPage = () => setPage((p) => Math.max(1, p - 1));
+
+  const renderStars = (value) => (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {ratingScale.map((n) => (
+        <Star key={n} size={18} color="#c7a04f" fill={n <= value ? '#c7a04f' : 'transparent'} />
+      ))}
+    </div>
+  );
 
   return (
     <section id="reviews" className="section">
@@ -183,6 +228,22 @@ const Reviews = ({ t, language }) => {
           </form>
 
           <div className="review-list">
+            <div className="review-summary">
+              <div>
+                <div className="avg-label">{avgLabel[language] || avgLabel.en}</div>
+                <div className="avg-score">
+                  {average?.toFixed ? average.toFixed(1) : Number(average || 0).toFixed(1)}
+                  <span className="avg-total">/5</span>
+                </div>
+                <div className="avg-count">
+                  {total || 0} {countLabel[language] || countLabel.en}
+                </div>
+              </div>
+              <div className="avg-stars">
+                {renderStars(Math.round(average || 0))}
+              </div>
+            </div>
+
             {loading && (
               <div className="review-status helper">
                 {loadingMessages[language] || loadingMessages.en}
@@ -195,7 +256,7 @@ const Reviews = ({ t, language }) => {
 
             <div className="review-grid">
               {reviews.map((review) => (
-                <article key={`${review.name}-${review.text}`} className="review-card">
+                <article key={`${review.name}-${review.text}-${review.id || ''}`} className="review-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <strong style={{ fontSize: 16 }}>{review.name}</strong>
@@ -213,6 +274,20 @@ const Reviews = ({ t, language }) => {
             </div>
 
             {loadError && <div className="review-status error">{loadError}</div>}
+
+            {totalPages > 1 && (
+              <div className="review-pagination">
+                <button className="page-btn" onClick={prevPage} disabled={page === 1}>
+                  ←
+                </button>
+                <span className="page-info">
+                  {page} / {totalPages}
+                </span>
+                <button className="page-btn" onClick={nextPage} disabled={page >= totalPages}>
+                  →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

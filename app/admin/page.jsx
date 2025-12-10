@@ -1,68 +1,163 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { translations } from '../../content/translations';
 
-const cloneData = () => JSON.parse(JSON.stringify(translations));
+const languages = ['cz', 'en', 'de'];
+const initialProperty = { name: '', location: '', price: '', sqm: '', rooms: '', image: '', tag: '' };
+
+const splitProperties = (list = []) => {
+  const active = [];
+  const sold = [];
+  list.forEach((item) => {
+    if (item?.sold) sold.push(item);
+    else active.push(item);
+  });
+  return { active, sold };
+};
 
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
   const [formAuth, setFormAuth] = useState({ user: '', pass: '' });
   const [lang, setLang] = useState('cz');
-  const [data, setData] = useState(cloneData());
-  const [newProperty, setNewProperty] = useState({
-    name: '',
-    location: '',
-    price: '',
-    sqm: '',
-    rooms: '',
-    image: '',
-  });
+  const [properties, setProperties] = useState(splitProperties());
+  const [newProperty, setNewProperty] = useState(initialProperty);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
 
-  const t = useMemo(() => data[lang], [data, lang]);
+  const t = useMemo(() => translations[lang], [lang]);
+  const fallback = useMemo(() => translations[lang]?.properties || {}, [lang]);
+  const fallbackSplit = useMemo(
+    () => splitProperties([...(fallback.items || []), ...(fallback.soldItems || [])]),
+    [fallback]
+  );
+
+  useEffect(() => {
+    setProperties(fallbackSplit);
+    setStatus('');
+    setError('');
+    if (authed) {
+      loadProperties(lang);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang, authed, fallbackSplit]);
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (formAuth.user === 'admin' && formAuth.pass === '1234') {
       setAuthed(true);
+      loadProperties(lang);
     } else {
-      alert('Nesprávné údaje');
+      setError('Nesprávné údaje.');
     }
   };
 
-  const markSold = (prop) => {
-    setData((prev) => {
-      const next = cloneData();
-      Object.assign(next, prev);
-      next[lang] = { ...prev[lang] };
-      next[lang].properties = { ...prev[lang].properties };
-      next[lang].properties.items = prev[lang].properties.items.filter((p) => p.name !== prop.name);
-      next[lang].properties.soldItems = [
-        ...(prev[lang].properties.soldItems || []),
-        { ...prop, tag: prev[lang].properties.toggles.sold },
-      ];
-      return next;
-    });
+  const loadProperties = async (currentLang) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/properties?lang=${currentLang}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Nepodařilo se načíst data.');
+      const list = Array.isArray(data.properties) ? data.properties : [];
+      setProperties(list.length ? splitProperties(list) : fallbackSplit);
+    } catch (err) {
+      setError(err.message || 'Nepodařilo se načíst data.');
+      setProperties(fallbackSplit);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addProperty = (e) => {
+  const createFromFallback = async (prop, sold = false) => {
+    const payload = {
+      ...prop,
+      language: lang,
+      sqm: prop.sqm || '0',
+      rooms: prop.rooms || '0',
+      tag: prop.tag || 'Nově',
+    };
+    const res = await fetch('/api/properties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Uložení selhalo.');
+
+    if (sold) {
+      const markRes = await fetch('/api/properties', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: data.property.id, sold: true }),
+      });
+      const markData = await markRes.json().catch(() => ({}));
+      if (!markRes.ok) throw new Error(markData?.error || 'Označení prodáno selhalo.');
+      return markData.property;
+    }
+
+    return data.property;
+  };
+
+  const addProperty = async (e) => {
     e.preventDefault();
+    setStatus('');
+    setError('');
     if (!newProperty.name || !newProperty.location || !newProperty.price) {
-      alert('Vyplňte alespoň název, lokaci a cenu');
+      setError('Vyplňte alespoň název, lokaci a cenu.');
       return;
     }
-    setData((prev) => {
-      const next = cloneData();
-      Object.assign(next, prev);
-      next[lang] = { ...prev[lang] };
-      next[lang].properties = { ...prev[lang].properties };
-      next[lang].properties.items = [
-        { ...newProperty, sqm: newProperty.sqm || '0', rooms: newProperty.rooms || '0', tag: 'Nové' },
-        ...prev[lang].properties.items,
-      ];
-      return next;
-    });
-    setNewProperty({ name: '', location: '', price: '', sqm: '', rooms: '', image: '' });
+
+    try {
+      const payload = {
+        ...newProperty,
+        language: lang,
+        sqm: newProperty.sqm || '0',
+        rooms: newProperty.rooms || '0',
+        tag: newProperty.tag || 'Nově',
+      };
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Uložení selhalo.');
+
+      setProperties((prev) => ({
+        active: [data.property, ...(prev.active || [])],
+        sold: prev.sold || [],
+      }));
+      setNewProperty(initialProperty);
+      setStatus('Nemovitost uložena.');
+    } catch (err) {
+      setError(err.message || 'Uložení selhalo.');
+    }
+  };
+
+  const markSold = async (prop) => {
+    setStatus('');
+    setError('');
+    try {
+      const ensure = prop.id ? prop : await createFromFallback(prop, false);
+      const res = await fetch('/api/properties', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ensure.id, sold: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Označení prodáno selhalo.');
+      const updated = data.property || ensure;
+
+      setProperties((prev) => ({
+        active: (prev.active || []).filter((p) => (p.id ? p.id !== updated.id : p.name !== updated.name)),
+        sold: [updated, ...(prev.sold || []).filter((p) => (p.id ? p.id !== updated.id : p.name !== updated.name))],
+      }));
+      setStatus('Označeno jako prodané.');
+    } catch (err) {
+      setError(err.message || 'Označení prodáno selhalo.');
+    }
   };
 
   return (
@@ -86,11 +181,12 @@ const AdminPage = () => {
               style={inputStyle}
             />
             <button type="submit" style={primaryBtn}>Přihlásit</button>
+            {error && <div style={{ color: '#b42318', fontSize: 13 }}>{error}</div>}
           </form>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-              {['cz', 'en', 'de'].map((l) => (
+              {languages.map((l) => (
                 <button
                   key={l}
                   onClick={() => setLang(l)}
@@ -105,6 +201,10 @@ const AdminPage = () => {
               ))}
             </div>
 
+            {loading && <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 8 }}>Načítám data...</div>}
+            {status && <div style={{ color: '#2b7a0b', fontSize: 13, marginBottom: 8 }}>{status}</div>}
+            {error && <div style={{ color: '#b42318', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+
             <section style={{ marginBottom: 24 }}>
               <h2 style={{ margin: '8px 0 12px' }}>Přidat nemovitost</h2>
               <form onSubmit={addProperty} style={{ display: 'grid', gap: 10, maxWidth: 600 }}>
@@ -118,6 +218,7 @@ const AdminPage = () => {
                   <input style={inputStyle} placeholder="Pokoje" value={newProperty.rooms} onChange={(e) => setNewProperty({ ...newProperty, rooms: e.target.value })} />
                 </div>
                 <input style={inputStyle} placeholder="Obrázek URL" value={newProperty.image} onChange={(e) => setNewProperty({ ...newProperty, image: e.target.value })} />
+                <input style={inputStyle} placeholder="Štítek (např. Nově, Top)" value={newProperty.tag} onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })} />
                 <button type="submit" style={primaryBtn}>Uložit</button>
               </form>
             </section>
@@ -125,18 +226,31 @@ const AdminPage = () => {
             <section>
               <h2 style={{ margin: '8px 0 12px' }}>{t.properties.title}</h2>
               <div style={{ display: 'grid', gap: 10 }}>
-                {(t.properties.items || []).map((prop) => (
-                  <div key={prop.name} style={{ border: '1px solid #e5e8f0', borderRadius: 12, padding: 12, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' }}>
+                {(properties.active || []).map((prop) => (
+                  <div key={prop.id || prop.name} style={{ border: '1px solid #e5e8f0', borderRadius: 12, padding: 12, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' }}>
                     <div>
                       <strong>{prop.name}</strong>
                       <div style={{ color: '#6b7280', fontSize: 14 }}>{prop.location}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={secondaryBtn} onClick={() => setSelected(prop)}>Detail</button>
                       <button style={primaryBtn} onClick={() => markSold(prop)}>Označit prodáno</button>
                     </div>
                   </div>
                 ))}
+                {!properties.active?.length && <div style={{ color: '#6b7280', fontSize: 13 }}>Žádné aktivní nemovitosti.</div>}
+              </div>
+            </section>
+
+            <section style={{ marginTop: 24 }}>
+              <h3 style={{ margin: '12px 0' }}>Prodané</h3>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {(properties.sold || []).map((prop) => (
+                  <div key={prop.id || prop.name} style={{ border: '1px solid #e5e8f0', borderRadius: 12, padding: 12, background: '#f7f9fb' }}>
+                    <strong>{prop.name}</strong>
+                    <div style={{ color: '#6b7280', fontSize: 14 }}>{prop.location}</div>
+                  </div>
+                ))}
+                {!properties.sold?.length && <div style={{ color: '#6b7280', fontSize: 13 }}>Žádné prodané záznamy.</div>}
               </div>
             </section>
           </>

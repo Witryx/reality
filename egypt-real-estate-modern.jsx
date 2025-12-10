@@ -86,7 +86,7 @@ const EgyptRealEstate = () => {
           onSecondaryCta={() => scrollToSection('properties')}
         />
         <PersonalIntro t={t} onConsult={() => scrollToSection('contact')} />
-        <Properties t={t} />
+        <Properties t={t} language={language} />
         <Process t={t} />
         <About t={t} language={language} />
         <Reviews t={t} language={language} />

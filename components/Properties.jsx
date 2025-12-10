@@ -1,11 +1,61 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Bed, MapPin, Maximize } from "lucide-react";
 import SectionHeader from "./SectionHeader";
 
-const Properties = ({ t }) => {
+const Properties = ({ t, language = "cz" }) => {
   const [selected, setSelected] = useState(null);
   const [showSold, setShowSold] = useState(false);
-  const listings = showSold ? t.properties.soldItems : t.properties.items;
+  const fallbackActive = useMemo(() => t.properties.items || [], [t]);
+  const fallbackSold = useMemo(() => t.properties.soldItems || [], [t]);
+  const [data, setData] = useState({ active: fallbackActive, sold: fallbackSold });
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
+  const splitProperties = (list) => {
+    const active = [];
+    const sold = [];
+    list.forEach((item) => {
+      if (item?.sold) sold.push(item);
+      else active.push(item);
+    });
+    return { active, sold };
+  };
+
+  useEffect(() => {
+    setData({ active: fallbackActive, sold: fallbackSold });
+    setLoadError("");
+  }, [fallbackActive, fallbackSold, t]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/properties?lang=${language}`, { signal: controller.signal });
+        const resData = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(resData?.error || "load_failed");
+        const list = Array.isArray(resData.properties) ? resData.properties : [];
+        if (list.length) {
+          setData(splitProperties(list));
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          setLoadError(error.message || "Nepodařilo se načíst nemovitosti.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => controller.abort();
+  }, [language, t]);
+
+  const listings = showSold ? data.sold : data.active;
 
   return (
     <section
@@ -47,9 +97,18 @@ const Properties = ({ t }) => {
           </button>
         </div>
 
+        {loading && <div style={{ textAlign: "center", color: "#6b7280", marginBottom: 12 }}>Načítám...</div>}
+        {loadError && <div style={{ textAlign: "center", color: "#b42318", marginBottom: 12 }}>{loadError}</div>}
+
+        {!listings.length && (
+          <div style={{ textAlign: "center", color: "#6b7280", marginBottom: 12 }}>
+            Žádné nemovitosti k zobrazení.
+          </div>
+        )}
+
         <div className="listing-grid">
           {listings.map((property) => (
-            <article key={property.name} className="listing-card">
+            <article key={property.id || property.name} className="listing-card">
               <div className="listing-thumb">
                 <img
                   src={property.image}
