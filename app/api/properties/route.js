@@ -43,6 +43,12 @@ export async function POST(request) {
     return NextResponse.json({ property }, { status: 201 });
   } catch (error) {
     console.error('POST /api/properties', error);
+    if (error.message?.includes('Missing Postgres connection string')) {
+      return NextResponse.json(
+        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: 'Nepodařilo se uložit nemovitost.', detail: error.message },
       { status: 500 }
@@ -73,6 +79,12 @@ export async function PATCH(request) {
     return NextResponse.json({ property });
   } catch (error) {
     console.error('PATCH /api/properties', error);
+    if (error.message?.includes('Missing Postgres connection string')) {
+      return NextResponse.json(
+        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: 'Nepodařilo se aktualizovat nemovitost.', detail: error.message },
       { status: 500 }

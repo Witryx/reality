@@ -13,7 +13,7 @@ export async function GET(request) {
   const offset = (page - 1) * pageSize;
 
   try {
-    const { rows, total, average } = await fetchReviews({ language, limit: pageSize, offset });
+    const { rows, total, average, dbAvailable } = await fetchReviews({ language, limit: pageSize, offset });
     return NextResponse.json({
       reviews: rows,
       total,
@@ -21,6 +21,7 @@ export async function GET(request) {
       page,
       pageSize,
       language,
+      dbAvailable,
     });
   } catch (error) {
     console.error('GET /api/reviews', error);
@@ -64,6 +65,12 @@ export async function POST(request) {
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {
     console.error('POST /api/reviews', error);
+    if (error.message?.includes('Missing Postgres connection string')) {
+      return NextResponse.json(
+        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: 'Nepodařilo se uložit recenzi.', detail: error.message },
       { status: 500 }
