@@ -34,7 +34,7 @@ const Properties = ({ t, language = "cz" }) => {
       try {
         const res = await fetch(`/api/properties?lang=${language}`, { signal: controller.signal });
         const resData = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(resData?.error || "load_failed");
+        if (!res.ok) throw new Error(resData?.error || "Nepodařilo se načíst nemovitosti.");
         const list = Array.isArray(resData.properties) ? resData.properties : [];
         if (list.length) {
           setData(splitProperties(list));
@@ -116,8 +116,7 @@ const Properties = ({ t, language = "cz" }) => {
                   style={showSold ? { filter: "grayscale(1)" } : undefined}
                 />
                 {property.tag && <div className="tag-chip">{property.tag}</div>}
-                <div className="price-tag">{property.price}
-                </div>
+                <div className="price-tag">{property.price}</div>
               </div>
               <div className="listing-body">
                 <h3 className="listing-title">{property.name}</h3>

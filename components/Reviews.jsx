@@ -121,7 +121,7 @@ const Reviews = ({ t, language }) => {
 
       setFormSuccess(t.reviews.form?.success || 'Review saved.');
       setForm({ ...initialFormState });
-      setPage(1); // skočit na první stranu a znovu načíst, aby nová recenze byla nahoře
+      setPage(1); // jump to first page and reload to include the new review
     } catch (error) {
       setFormError(error.message || t.reviews.form?.error);
     } finally {
@@ -278,13 +278,13 @@ const Reviews = ({ t, language }) => {
             {totalPages > 1 && (
               <div className="review-pagination">
                 <button className="page-btn" onClick={prevPage} disabled={page === 1}>
-                  ←
+                  ‹
                 </button>
                 <span className="page-info">
                   {page} / {totalPages}
                 </span>
                 <button className="page-btn" onClick={nextPage} disabled={page >= totalPages}>
-                  →
+                  ›
                 </button>
               </div>
             )}

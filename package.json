@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "lint": "eslint . --ext js,jsx --max-warnings=0",
     "start": "next start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -27,5 +28,9 @@
     "next": "^16.0.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0",
+    "eslint-config-next": "^16.0.7"
   }
 }

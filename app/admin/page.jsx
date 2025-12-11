@@ -76,7 +76,7 @@ const AdminPage = () => {
       language: lang,
       sqm: prop.sqm || '0',
       rooms: prop.rooms || '0',
-      tag: prop.tag || 'Nově',
+      tag: prop.tag || 'Nové',
     };
     const res = await fetch('/api/properties', {
       method: 'POST',
@@ -115,7 +115,7 @@ const AdminPage = () => {
         language: lang,
         sqm: newProperty.sqm || '0',
         rooms: newProperty.rooms || '0',
-        tag: newProperty.tag || 'Nově',
+        tag: newProperty.tag || 'Nové',
       };
       const res = await fetch('/api/properties', {
         method: 'POST',
@@ -218,7 +218,7 @@ const AdminPage = () => {
                   <input style={inputStyle} placeholder="Pokoje" value={newProperty.rooms} onChange={(e) => setNewProperty({ ...newProperty, rooms: e.target.value })} />
                 </div>
                 <input style={inputStyle} placeholder="Obrázek URL" value={newProperty.image} onChange={(e) => setNewProperty({ ...newProperty, image: e.target.value })} />
-                <input style={inputStyle} placeholder="Štítek (např. Nově, Top)" value={newProperty.tag} onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })} />
+                <input style={inputStyle} placeholder="Štítek (např. Nové, Top)" value={newProperty.tag} onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })} />
                 <button type="submit" style={primaryBtn}>Uložit</button>
               </form>
             </section>
