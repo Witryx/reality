@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, Star } from 'lucide-react';
+import { Send, Star, X } from 'lucide-react';
 import SectionHeader from './SectionHeader';
 
 const ratingScale = [1, 2, 3, 4, 5];
@@ -22,6 +22,9 @@ const countLabel = {
   de: 'Bewertungen',
 };
 
+const MAX_SHOWN = 4;
+const TRUNCATE_AT = 220;
+
 const Reviews = ({ t, language }) => {
   const fallbackReviews = useMemo(() => t.reviews.items || [], [t]);
   const fallbackAverage = useMemo(() => {
@@ -30,25 +33,23 @@ const Reviews = ({ t, language }) => {
     return Math.round((sum / fallbackReviews.length) * 10) / 10;
   }, [fallbackReviews]);
 
-  const [reviews, setReviews] = useState(fallbackReviews);
+  const [reviews, setReviews] = useState(fallbackReviews.slice(0, MAX_SHOWN));
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState(initialFormState);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 9;
   const [total, setTotal] = useState(fallbackReviews.length);
   const [average, setAverage] = useState(fallbackAverage);
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    setReviews(fallbackReviews);
+    setReviews(fallbackReviews.slice(0, MAX_SHOWN));
     setForm({ ...initialFormState });
     setFormError('');
     setFormSuccess('');
     setLoadError('');
-    setPage(1);
     setTotal(fallbackReviews.length);
     setAverage(fallbackAverage);
   }, [fallbackReviews, language, fallbackAverage]);
@@ -59,19 +60,14 @@ const Reviews = ({ t, language }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/reviews?lang=${language}&page=${page}&pageSize=${pageSize}`, {
+        const res = await fetch(`/api/reviews?lang=all&page=1&pageSize=${MAX_SHOWN}`, {
           signal: controller.signal,
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || 'load_failed');
         const incoming = Array.isArray(data.reviews) ? data.reviews : [];
 
-        if (incoming.length) {
-          setReviews(incoming);
-        } else {
-          setReviews(fallbackReviews);
-        }
-
+        setReviews((incoming.length ? incoming : fallbackReviews).slice(0, MAX_SHOWN));
         setTotal(Number(data.total || incoming.length || fallbackReviews.length));
         setAverage(Number(data.average || fallbackAverage));
       } catch (error) {
@@ -79,7 +75,7 @@ const Reviews = ({ t, language }) => {
           const fallbackMessage = t.reviews.form?.error || 'Nepodařilo se načíst recenze.';
           const message = error.message && error.message !== 'load_failed' ? error.message : fallbackMessage;
           setLoadError(message);
-          setReviews(fallbackReviews);
+          setReviews(fallbackReviews.slice(0, MAX_SHOWN));
           setTotal(fallbackReviews.length);
           setAverage(fallbackAverage);
         }
@@ -93,7 +89,7 @@ const Reviews = ({ t, language }) => {
     load();
 
     return () => controller.abort();
-  }, [language, page, pageSize, t, fallbackReviews, fallbackAverage]);
+  }, [language, t, fallbackReviews, fallbackAverage]);
 
   const onChange = (field) => (e) => {
     const value = field === 'rating' ? Number(e.target.value) : e.target.value;
@@ -121,7 +117,6 @@ const Reviews = ({ t, language }) => {
 
       setFormSuccess(t.reviews.form?.success || 'Review saved.');
       setForm({ ...initialFormState });
-      setPage(1); // jump to first page and reload to include the new review
     } catch (error) {
       setFormError(error.message || t.reviews.form?.error);
     } finally {
@@ -129,9 +124,10 @@ const Reviews = ({ t, language }) => {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
-  const nextPage = () => setPage((p) => Math.min(totalPages, p + 1));
-  const prevPage = () => setPage((p) => Math.max(1, p - 1));
+  const truncate = (text) => {
+    if (!text) return '';
+    return text.length > TRUNCATE_AT ? `${text.slice(0, TRUNCATE_AT).trimEnd()}…` : text;
+  };
 
   const renderStars = (value) => (
     <div style={{ display: 'flex', gap: 4 }}>
@@ -256,7 +252,12 @@ const Reviews = ({ t, language }) => {
 
             <div className="review-grid">
               {reviews.map((review) => (
-                <article key={`${review.name}-${review.text}-${review.id || ''}`} className="review-card">
+                <article
+                  key={`${review.name}-${review.text}-${review.id || ''}`}
+                  className="review-card"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelected(review)}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <strong style={{ fontSize: 16 }}>{review.name}</strong>
@@ -268,29 +269,47 @@ const Reviews = ({ t, language }) => {
                       ))}
                     </div>
                   </div>
-                  <p style={{ marginTop: 12, color: '#111', lineHeight: 1.65 }}>{review.text}</p>
+                  <p style={{ marginTop: 12, color: '#111', lineHeight: 1.65 }}>
+                    {truncate(review.text)}
+                  </p>
+                  {review.text && review.text.length > TRUNCATE_AT && (
+                    <span style={{ color: '#0f2c4d', fontWeight: 700, fontSize: 13 }}>
+                      {language === 'cz' ? 'Více' : language === 'de' ? 'Mehr' : 'More'}
+                    </span>
+                  )}
                 </article>
               ))}
             </div>
 
             {loadError && <div className="review-status error">{loadError}</div>}
-
-            {totalPages > 1 && (
-              <div className="review-pagination">
-                <button className="page-btn" onClick={prevPage} disabled={page === 1}>
-                  ‹
-                </button>
-                <span className="page-info">
-                  {page} / {totalPages}
-                </span>
-                <button className="page-btn" onClick={nextPage} disabled={page >= totalPages}>
-                  ›
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {selected && (
+        <div className="detail-overlay" onClick={() => setSelected(null)}>
+          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setSelected(null)} aria-label="Zavřít detail">
+              <X size={18} />
+            </button>
+            <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
+              <div className="detail-info">
+                <div className="eyebrow" style={{ color: "#0f2c4d" }}>{selected.location || t.nav.reviews}</div>
+                <h3 className="title" style={{ fontSize: "26px", margin: "10px 0 8px" }}>{selected.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  {renderStars(selected.rating || 0)}
+                  <span style={{ color: '#6b7280', fontSize: 14 }}>
+                    {selected.rating}/5
+                  </span>
+                </div>
+                <div style={{ color: "#333", lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                  {selected.text}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

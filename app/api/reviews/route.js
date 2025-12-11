@@ -5,9 +5,11 @@ export const runtime = 'nodejs';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const language = searchParams.get('lang') || 'cz';
+  const langParam = searchParams.get('lang') || 'cz';
+  const allParam = searchParams.get('all');
+  const language = allParam === '1' || langParam === 'all' ? 'all' : langParam;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
-  const pageSize = Math.max(1, Math.min(Number(searchParams.get('pageSize')) || 9, 50));
+  const pageSize = Math.max(1, Math.min(Number(searchParams.get('pageSize')) || 4, 50));
   const offset = (page - 1) * pageSize;
 
   try {
@@ -18,6 +20,7 @@ export async function GET(request) {
       average,
       page,
       pageSize,
+      language,
     });
   } catch (error) {
     console.error('GET /api/reviews', error);
