@@ -12,7 +12,13 @@ const Contact = ({ t, formData, onChange, onSubmit, language }) => (
   <section
     id="contact"
     className="section"
-    style={{ background: 'linear-gradient(135deg, #0f2c4d 0%, #2f6fa3 100%)', color: '#fff' }}
+    style={{
+      background:
+        'radial-gradient(120% 120% at 12% 10%, rgba(217,179,106,0.22), transparent 55%), radial-gradient(120% 90% at 86% 8%, rgba(31,186,198,0.18), transparent 52%), linear-gradient(160deg, #041021 0%, #0b2338 50%, #0f7082 100%)',
+      color: '#f4efe4',
+      position: 'relative',
+      overflow: 'hidden',
+    }}
   >
     <div className="container">
       <SectionHeader
@@ -23,28 +29,57 @@ const Contact = ({ t, formData, onChange, onSubmit, language }) => (
       />
 
       <div className="contact-grid">
-        <div className="contact-card" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>
+        <div
+          className="contact-card"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,252,245,0.14), rgba(31,186,198,0.08))',
+            color: '#f4efe4',
+            borderColor: 'rgba(217,179,106,0.4)',
+            boxShadow: '0 22px 48px rgba(0,0,0,0.28)',
+          }}
+        >
           <div className="contact-actions">
-            <button className="btn-secondary" style={{ background: '#fff', color: 'var(--navy)' }}>
+            <button
+              className="btn-secondary"
+              style={{
+                background: 'linear-gradient(135deg, #fffaf1, #f4e6d0)',
+                color: 'var(--navy)',
+                borderColor: 'rgba(217,179,106,0.45)',
+              }}
+            >
               <Mail size={16} />
               {language === 'cz' ? 'Napište nám email' : language === 'de' ? 'Schreiben Sie uns' : 'Email us'}
             </button>
-            <button className="btn-primary" style={{ background: '#25d366', color: '#0f2c4d', boxShadow: '0 12px 26px rgba(37,211,102,0.35)' }}>
+            <button
+              className="btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #f0c77b, #1fbac6)',
+                color: '#0b2338',
+                boxShadow: '0 14px 32px rgba(7,23,40,0.3)',
+              }}
+            >
               <MessageCircle size={16} />
               WhatsApp
             </button>
           </div>
-          <div className="contact-info" style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>
+          <div
+            className="contact-info"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,252,245,0.16), rgba(31,186,198,0.12))',
+              borderColor: 'rgba(217,179,106,0.45)',
+              color: '#f4efe4',
+            }}
+          >
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <Phone size={18} color="#f7c288" />
+              <Phone size={18} color="#d9b45a" />
               <strong>{t.contact.info.phone}</strong>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <Mail size={18} color="#f7c288" />
+              <Mail size={18} color="#d9b45a" />
               <span>{t.contact.info.email}</span>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <MessageCircle size={18} color="#f7c288" />
+              <MessageCircle size={18} color="#d9b45a" />
               <span>{t.contact.info.whatsapp}</span>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

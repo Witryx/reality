@@ -6,8 +6,8 @@ const Process = ({ t }) => (
     id="howItWorks"
     className="section"
     style={{
-      background: '#eef6f1',
-      borderTop: '1px solid rgba(15,44,77,0.06)',
+      background: 'linear-gradient(180deg, rgba(247,236,220,0.95), rgba(239,214,176,0.9), rgba(246,236,220,0.96))',
+      borderTop: '1px solid rgba(217,179,106,0.3)',
       position: 'relative',
       overflow: 'hidden',
     }}
@@ -18,8 +18,8 @@ const Process = ({ t }) => (
         inset: '-10% -20% auto auto',
         width: '420px',
         height: '420px',
-        background: 'radial-gradient(circle, rgba(47,111,163,0.08) 0%, transparent 60%)',
-        filter: 'blur(6px)',
+        background: 'radial-gradient(circle, rgba(31,186,198,0.12) 0%, transparent 60%), radial-gradient(circle at 40% 30%, rgba(217,179,106,0.14), transparent 70%)',
+        filter: 'blur(8px)',
       }}
     />
     <div className="container">
@@ -42,20 +42,20 @@ const Process = ({ t }) => (
                 key={step.title}
                 className="step-card"
                 style={{
-                  border: '1px solid rgba(15,44,77,0.08)',
-                  background: '#f7fbf8',
-                  boxShadow: '0 18px 30px rgba(15,44,77,0.08)',
+                  border: '1px solid rgba(217,179,106,0.3)',
+                  background: 'linear-gradient(145deg, rgba(255,252,245,0.94), rgba(244,228,205,0.92))',
+                  boxShadow: '0 18px 32px rgba(7,23,40,0.14)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <div className="step-number" style={{ background: '#0f2c4d', boxShadow: '0 6px 14px rgba(15,44,77,0.2)' }}>
+                  <div className="step-number" style={{ background: 'linear-gradient(135deg, #0b2338, #0f7082 65%, #1fbac6)', boxShadow: '0 8px 18px rgba(7,23,40,0.22)' }}>
                     {number}
                   </div>
                   <div
                     style={{
                       height: 2,
                       flex: 1,
-                      background: 'linear-gradient(90deg, rgba(242,156,75,0.8), transparent)',
+                      background: 'linear-gradient(90deg, rgba(217,179,106,0.8), transparent)',
                       borderRadius: 999,
                     }}
                   />

@@ -1,23 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Send, Star, X } from 'lucide-react';
 import SectionHeader from './SectionHeader';
 
 const ratingScale = [1, 2, 3, 4, 5];
 const initialFormState = { name: '', location: '', rating: 5, text: '' };
 const loadingMessages = {
-  cz: 'Načítám recenze...',
+  cz: 'Na\u010d\u00edt\u00e1m recenze...',
   en: 'Loading reviews...',
   de: 'Bewertungen werden geladen...',
 };
 
 const avgLabel = {
-  cz: 'Průměrné hodnocení',
+  cz: 'Pr\u016fm\u011brn\u00e9 hodnocen\u00ed',
   en: 'Average rating',
   de: 'Durchschnittsbewertung',
 };
 
 const countLabel = {
-  cz: 'recenzí',
+  cz: 'recenz\u00ed',
   en: 'reviews',
   de: 'Bewertungen',
 };
@@ -26,33 +26,26 @@ const MAX_SHOWN = 4;
 const TRUNCATE_AT = 220;
 
 const Reviews = ({ t, language }) => {
-  const fallbackReviews = useMemo(() => t.reviews.items || [], [t]);
-  const fallbackAverage = useMemo(() => {
-    if (!fallbackReviews.length) return 0;
-    const sum = fallbackReviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
-    return Math.round((sum / fallbackReviews.length) * 10) / 10;
-  }, [fallbackReviews]);
-
-  const [reviews, setReviews] = useState(fallbackReviews.slice(0, MAX_SHOWN));
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState(initialFormState);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [total, setTotal] = useState(fallbackReviews.length);
-  const [average, setAverage] = useState(fallbackAverage);
+  const [total, setTotal] = useState(0);
+  const [average, setAverage] = useState(0);
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    setReviews(fallbackReviews.slice(0, MAX_SHOWN));
+    setReviews([]);
     setForm({ ...initialFormState });
     setFormError('');
     setFormSuccess('');
     setLoadError('');
-    setTotal(fallbackReviews.length);
-    setAverage(fallbackAverage);
-  }, [fallbackReviews, language, fallbackAverage]);
+    setTotal(0);
+    setAverage(0);
+  }, [language]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,17 +60,17 @@ const Reviews = ({ t, language }) => {
         if (!res.ok) throw new Error(data?.error || 'load_failed');
         const incoming = Array.isArray(data.reviews) ? data.reviews : [];
 
-        setReviews((incoming.length ? incoming : fallbackReviews).slice(0, MAX_SHOWN));
-        setTotal(Number(data.total || incoming.length || fallbackReviews.length));
-        setAverage(Number(data.average || fallbackAverage));
+        setReviews(incoming.slice(0, MAX_SHOWN));
+        setTotal(Number(data.total || incoming.length || 0));
+        setAverage(Number(data.average || 0));
       } catch (error) {
         if (error.name !== 'AbortError') {
-          const fallbackMessage = t.reviews.form?.error || 'Nepodařilo se načíst recenze.';
+          const fallbackMessage = t.reviews.form?.error || 'Nepodarilo se nacist recenze.';
           const message = error.message && error.message !== 'load_failed' ? error.message : fallbackMessage;
           setLoadError(message);
-          setReviews(fallbackReviews.slice(0, MAX_SHOWN));
-          setTotal(fallbackReviews.length);
-          setAverage(fallbackAverage);
+          setReviews([]);
+          setTotal(0);
+          setAverage(0);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -89,7 +82,7 @@ const Reviews = ({ t, language }) => {
     load();
 
     return () => controller.abort();
-  }, [language, t, fallbackReviews, fallbackAverage]);
+  }, [language, t]);
 
   const onChange = (field) => (e) => {
     const value = field === 'rating' ? Number(e.target.value) : e.target.value;
@@ -116,6 +109,14 @@ const Reviews = ({ t, language }) => {
       }
 
       setFormSuccess(t.reviews.form?.success || 'Review saved.');
+      const ratingValue = Number(form.rating);
+      const newReview = data?.review || { ...form, rating: ratingValue };
+      setReviews((prev) => [newReview, ...prev].slice(0, MAX_SHOWN));
+      setTotal((prev) => prev + 1);
+      setAverage((prevAvg) => {
+        const prevTotal = total || 0;
+        return Math.round((((prevAvg || 0) * prevTotal + ratingValue) / (prevTotal + 1)) * 10) / 10;
+      });
       setForm({ ...initialFormState });
     } catch (error) {
       setFormError(error.message || t.reviews.form?.error);
@@ -126,19 +127,23 @@ const Reviews = ({ t, language }) => {
 
   const truncate = (text) => {
     if (!text) return '';
-    return text.length > TRUNCATE_AT ? `${text.slice(0, TRUNCATE_AT).trimEnd()}…` : text;
+    return text.length > TRUNCATE_AT ? `${text.slice(0, TRUNCATE_AT).trimEnd()}...` : text;
   };
 
   const renderStars = (value) => (
     <div style={{ display: 'flex', gap: 4 }}>
       {ratingScale.map((n) => (
-        <Star key={n} size={18} color="#c7a04f" fill={n <= value ? '#c7a04f' : 'transparent'} />
+        <Star key={n} size={18} color="#d9b45a" fill={n <= value ? '#d9b45a' : 'transparent'} />
       ))}
     </div>
   );
 
   return (
-    <section id="reviews" className="section">
+    <section
+      id="reviews"
+      className="section"
+      style={{ background: "linear-gradient(180deg, rgba(247,236,220,0.95), rgba(239,214,176,0.9), rgba(246,236,220,0.96))" }}
+    >
       <div className="container">
         <SectionHeader
           eyebrow={t.nav.reviews}
@@ -187,8 +192,8 @@ const Reviews = ({ t, language }) => {
                   >
                     <Star
                       size={18}
-                      color="#c7a04f"
-                      fill={value <= form.rating ? '#c7a04f' : 'transparent'}
+                      color="#d9b45a"
+                      fill={value <= form.rating ? '#d9b45a' : 'transparent'}
                     />
                   </button>
                 ))}
@@ -264,8 +269,8 @@ const Reviews = ({ t, language }) => {
                       {review.location ? <div className="review-meta">{review.location}</div> : null}
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {[...Array(review.rating)].map((_, i) => (
-                        <Star key={i} size={16} color="#c7a04f" fill="#c7a04f" />
+                      {Array.from({ length: Math.min(5, Math.max(0, Math.round(Number(review.rating) || 0))) }).map((_, i) => (
+                        <Star key={i} size={16} color="#d9b45a" fill="#d9b45a" />
                       ))}
                     </div>
                   </div>
@@ -273,8 +278,8 @@ const Reviews = ({ t, language }) => {
                     {truncate(review.text)}
                   </p>
                   {review.text && review.text.length > TRUNCATE_AT && (
-                    <span style={{ color: '#0f2c4d', fontWeight: 700, fontSize: 13 }}>
-                      {language === 'cz' ? 'Více' : language === 'de' ? 'Mehr' : 'More'}
+                    <span style={{ color: '#0b2338', fontWeight: 700, fontSize: 13 }}>
+                      {language === 'cz' ? 'V\u00edce' : language === 'de' ? 'Mehr' : 'More'}
                     </span>
                   )}
                 </article>
@@ -288,21 +293,30 @@ const Reviews = ({ t, language }) => {
 
       {selected && (
         <div className="detail-overlay" onClick={() => setSelected(null)}>
-          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => setSelected(null)} aria-label="Zavřít detail">
+          <div className="detail-modal review-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setSelected(null)} aria-label="Zav\u0159\u00edt detail">
               <X size={18} />
             </button>
             <div className="detail-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="detail-info">
-                <div className="eyebrow" style={{ color: "#0f2c4d" }}>{selected.location || t.nav.reviews}</div>
-                <h3 className="title" style={{ fontSize: "26px", margin: "10px 0 8px" }}>{selected.name}</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  {renderStars(selected.rating || 0)}
-                  <span style={{ color: '#6b7280', fontSize: 14 }}>
-                    {selected.rating}/5
+              <div className="review-detail">
+                <div className="review-detail-meta">
+                  {selected.location ? <span className="review-chip">{selected.location}</span> : null}
+                  <span className="review-chip rating-chip">
+                    {Number(selected.rating || 0).toFixed(1).replace(/\\.0$/, '')}/5
                   </span>
                 </div>
-                <div style={{ color: "#333", lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+
+                <div className="review-detail-header">
+                  <h3 className="review-name">{selected.name}</h3>
+                  <div className="review-detail-stars">
+                    {renderStars(selected.rating || 0)}
+                    <span className="rating-value" style={{ color: '#6b7280' }}>
+                      {selected.rating}/5
+                    </span>
+                  </div>
+                </div>
+
+                <div className="review-detail-text">
                   {selected.text}
                 </div>
               </div>

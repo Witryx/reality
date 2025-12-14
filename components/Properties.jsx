@@ -1,15 +1,28 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowRight, Bed, MapPin, Maximize } from "lucide-react";
 import SectionHeader from "./SectionHeader";
 
 const Properties = ({ t, language = "cz" }) => {
   const [selected, setSelected] = useState(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showSold, setShowSold] = useState(false);
-  const fallbackActive = useMemo(() => t.properties.items || [], [t]);
-  const fallbackSold = useMemo(() => t.properties.soldItems || [], [t]);
-  const [data, setData] = useState({ active: fallbackActive, sold: fallbackSold });
+  const [data, setData] = useState({ active: [], sold: [] });
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+
+  const toImages = (value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch {
+        // not JSON, fall through
+      }
+      return value ? [value] : [];
+    }
+    return [];
+  };
 
   const splitProperties = (list) => {
     const active = [];
@@ -22,9 +35,13 @@ const Properties = ({ t, language = "cz" }) => {
   };
 
   useEffect(() => {
-    setData({ active: fallbackActive, sold: fallbackSold });
+    setData({ active: [], sold: [] });
     setLoadError("");
-  }, [fallbackActive, fallbackSold, t]);
+  }, [language, t]);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [selected]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,14 +51,12 @@ const Properties = ({ t, language = "cz" }) => {
       try {
         const res = await fetch(`/api/properties?lang=${language}`, { signal: controller.signal });
         const resData = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(resData?.error || "Nepodařilo se načíst nemovitosti.");
+        if (!res.ok) throw new Error(resData?.error || "Nepodarilo se nacist nemovitosti.");
         const list = Array.isArray(resData.properties) ? resData.properties : [];
-        if (list.length) {
-          setData(splitProperties(list));
-        }
+        setData(splitProperties(list));
       } catch (error) {
         if (error.name !== "AbortError") {
-          setLoadError(error.message || "Nepodařilo se načíst nemovitosti.");
+          setLoadError(error.message || "Nepodarilo se nacist nemovitosti.");
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -56,12 +71,25 @@ const Properties = ({ t, language = "cz" }) => {
   }, [language, t]);
 
   const listings = showSold ? data.sold : data.active;
+  const selectedImages = selected
+    ? (() => {
+        const imgs = toImages(selected.images);
+        if (imgs.length) return imgs;
+        if (selected.image) return [selected.image];
+        return [];
+      })()
+    : [];
+  const currentImage = selectedImages[activeImageIndex] || selectedImages[0];
 
   return (
     <section
       id="properties"
       className="section"
-      style={{ background: "#eef6f1", borderTop: "1px solid rgba(15,44,77,0.06)" }}
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(247,236,220,0.95), rgba(239,214,176,0.9), rgba(246,236,220,0.96))",
+        borderTop: "1px solid rgba(217,179,106,0.3)",
+      }}
     >
       <div className="container">
         <SectionHeader
@@ -74,10 +102,12 @@ const Properties = ({ t, language = "cz" }) => {
           <button
             className="btn-secondary"
             style={{
-              background: showSold ? "#fff" : "#0f2c4d",
+              background: showSold
+                ? "linear-gradient(135deg, #fffaf1, #f4e6d0)"
+                : "linear-gradient(135deg, #0b2338, #0f7082 60%, #1fbac6)",
               color: showSold ? "var(--navy)" : "#fff",
-              borderColor: showSold ? "rgba(15,44,77,0.14)" : "transparent",
-              boxShadow: showSold ? "none" : "0 10px 24px rgba(15,44,77,0.22)",
+              borderColor: showSold ? "rgba(217,179,106,0.35)" : "rgba(217,179,106,0.6)",
+              boxShadow: showSold ? "0 10px 24px rgba(7,23,40,0.08)" : "0 12px 28px rgba(7,23,40,0.24)",
             }}
             onClick={() => setShowSold(false)}
           >
@@ -86,10 +116,12 @@ const Properties = ({ t, language = "cz" }) => {
           <button
             className="btn-secondary"
             style={{
-              background: showSold ? "#0f2c4d" : "#fff",
+              background: showSold
+                ? "linear-gradient(135deg, #0b2338, #0f7082 60%, #1fbac6)"
+                : "linear-gradient(135deg, #fffaf1, #f4e6d0)",
               color: showSold ? "#fff" : "var(--navy)",
-              borderColor: showSold ? "transparent" : "rgba(15,44,77,0.14)",
-              boxShadow: showSold ? "0 10px 24px rgba(15,44,77,0.22)" : "none",
+              borderColor: showSold ? "rgba(217,179,106,0.6)" : "rgba(217,179,106,0.35)",
+              boxShadow: showSold ? "0 12px 28px rgba(7,23,40,0.24)" : "0 10px 24px rgba(7,23,40,0.08)",
             }}
             onClick={() => setShowSold(true)}
           >
@@ -110,12 +142,23 @@ const Properties = ({ t, language = "cz" }) => {
           {listings.map((property) => (
             <article key={property.id || property.name} className="listing-card">
               <div className="listing-thumb">
-                <img
-                  src={property.image}
-                  alt={property.name}
-                  style={showSold ? { filter: "grayscale(1)" } : undefined}
-                />
-                {property.tag && <div className="tag-chip">{property.tag}</div>}
+                {(() => {
+                  const imgs = toImages(property.images);
+                  const cover = imgs[0] || property.image;
+                  return (
+                    <img
+                      src={cover}
+                      alt={property.name}
+                      style={showSold ? { filter: "grayscale(1)" } : undefined}
+                    />
+                  );
+                })()}
+                {(() => {
+                  const tagLabel = property.sold
+                    ? (language === "cz" ? "PROD\u00c1NO" : language === "de" ? "VERKAUFT" : "SOLD")
+                    : property.tag;
+                  return tagLabel ? <div className="tag-chip">{tagLabel}</div> : null;
+                })()}
                 <div className="price-tag">{property.price}</div>
               </div>
               <div className="listing-body">
@@ -128,15 +171,15 @@ const Properties = ({ t, language = "cz" }) => {
                     rel="noreferrer"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
-                    <MapPin size={16} color="#c7a04f" />
+                    <MapPin size={16} color="#d9b45a" />
                     {property.location}
                   </a>
                   <span className="meta-chip">
-                    <Maximize size={16} color="#c7a04f" />
+                    <Maximize size={16} color="#d9b45a" />
                     {property.sqm} {t.properties.sqm}
                   </span>
                   <span className="meta-chip">
-                    <Bed size={16} color="#c7a04f" />
+                    <Bed size={16} color="#d9b45a" />
                     {property.rooms} {t.properties.rooms}
                   </span>
                 </div>
@@ -160,15 +203,34 @@ const Properties = ({ t, language = "cz" }) => {
             <button className="close-btn" onClick={() => setSelected(null)}>x</button>
             <div className="detail-grid">
               <div className="detail-image">
-                <img src={selected.image} alt={selected.name} />
+                {currentImage ? (
+                  <img src={currentImage} alt={selected.name} />
+                ) : (
+                  <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>Žádný obrázek</div>
+                )}
+                {selectedImages.length > 1 && (
+                  <div className="thumb-row">
+                    {selectedImages.map((img, idx) => (
+                      <button
+                        key={img + idx}
+                        className={`thumb-btn ${idx === activeImageIndex ? 'active' : ''}`}
+                        onClick={() => setActiveImageIndex(idx)}
+                        type="button"
+                        aria-label={`Obrázek ${idx + 1}`}
+                      >
+                        <img src={img} alt={`${selected.name} náhled ${idx + 1}`} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="detail-info">
-                <div className="eyebrow" style={{ color: "#0f2c4d" }}>{selected.location}</div>
+                <div className="eyebrow" style={{ color: "var(--gold)" }}>{selected.location}</div>
                 <h3 className="title" style={{ fontSize: "28px", margin: "10px 0 8px" }}>{selected.name}</h3>
-                <p style={{ color: "#0f2c4d", fontWeight: 700, marginBottom: 10 }}>{selected.price}</p>
+                <p style={{ color: "var(--gold)", fontWeight: 700, marginBottom: 10 }}>{selected.price}</p>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-                  <span className="meta-chip"><Maximize size={16} color="#c7a04f" />{selected.sqm} {t.properties.sqm}</span>
-                  <span className="meta-chip"><Bed size={16} color="#c7a04f" />{selected.rooms} {t.properties.rooms}</span>
+                  <span className="meta-chip"><Maximize size={16} color="#d9b45a" />{selected.sqm} {t.properties.sqm}</span>
+                  <span className="meta-chip"><Bed size={16} color="#d9b45a" />{selected.rooms} {t.properties.rooms}</span>
                   <a
                     className="meta-chip"
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.location)}`}
@@ -176,11 +238,11 @@ const Properties = ({ t, language = "cz" }) => {
                     rel="noreferrer"
                     style={{ textDecoration: "none" }}
                   >
-                    <MapPin size={16} color="#c7a04f" />
+                    <MapPin size={16} color="#d9b45a" />
                     {selected.location}
                   </a>
                 </div>
-                <div style={{ color: "#333", lineHeight: 1.6, marginBottom: 12 }}>
+                <div style={{ color: "#1a2a38", lineHeight: 1.6, marginBottom: 12 }}>
                   {t.properties.subtitle}
                 </div>
                 <div style={{ display: "grid", gap: 8 }}>

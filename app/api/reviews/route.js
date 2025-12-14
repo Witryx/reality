@@ -1,21 +1,38 @@
-import { NextResponse } from 'next/server';
-import { createReview, fetchReviews } from '../../../lib/reviews';
+import { NextResponse } from "next/server";
+import { createReview, fetchReviews } from "../../../lib/reviews";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const langParam = searchParams.get('lang') || 'cz';
-  const allParam = searchParams.get('all');
-  const language = allParam === '1' || langParam === 'all' ? 'all' : langParam;
-  const page = Math.max(1, Number(searchParams.get('page')) || 1);
-  const pageSize = Math.max(1, Math.min(Number(searchParams.get('pageSize')) || 4, 50));
+  const langParam = searchParams.get("lang") || "cz";
+  const allParam = searchParams.get("all");
+  const language = allParam === "1" || langParam === "all" ? "all" : langParam;
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const pageSize = Math.max(1, Math.min(Number(searchParams.get("pageSize")) || 4, 50));
   const offset = (page - 1) * pageSize;
 
   try {
     const { rows, total, average, dbAvailable } = await fetchReviews({ language, limit: pageSize, offset });
+
+    if (dbAvailable === false) {
+      return NextResponse.json(
+        {
+          reviews: [],
+          total: 0,
+          average: 0,
+          page,
+          pageSize,
+          language,
+          dbAvailable,
+          error: "Missing database connection (POSTGRES_URL).",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({
-      reviews: rows,
+      reviews: rows || [],
       total,
       average,
       page,
@@ -24,9 +41,19 @@ export async function GET(request) {
       dbAvailable,
     });
   } catch (error) {
-    console.error('GET /api/reviews', error);
+    console.error("GET /api/reviews", error);
     return NextResponse.json(
-      { error: 'Nepodařilo se načíst recenze.', detail: error.message },
+      {
+        reviews: [],
+        total: 0,
+        average: 0,
+        page,
+        pageSize,
+        language,
+        dbAvailable: false,
+        error: "Failed to load reviews from database.",
+        detail: error.message,
+      },
       { status: 500 }
     );
   }
@@ -38,18 +65,18 @@ export async function POST(request) {
   try {
     payload = await request.json();
   } catch (error) {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
   const { name, location, rating, text, language } = payload || {};
   const parsedRating = Number(rating);
 
   if (!name || !text || Number.isNaN(parsedRating)) {
-    return NextResponse.json({ error: 'Jméno, text a hodnocení jsou povinné.' }, { status: 400 });
+    return NextResponse.json({ error: "Name, text and rating are required." }, { status: 400 });
   }
 
   if (parsedRating < 1 || parsedRating > 5) {
-    return NextResponse.json({ error: 'Hodnocení musí být mezi 1 a 5.' }, { status: 400 });
+    return NextResponse.json({ error: "Rating must be between 1 and 5." }, { status: 400 });
   }
 
   const safeReview = {
@@ -57,22 +84,22 @@ export async function POST(request) {
     location: location ? String(location).slice(0, 80) : null,
     rating: parsedRating,
     text: String(text).slice(0, 1000),
-    language: (language || 'cz').slice(0, 5),
+    language: (language || "cz").slice(0, 5),
   };
 
   try {
     const review = await createReview(safeReview);
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/reviews', error);
-    if (error.message?.includes('Missing Postgres connection string')) {
+    console.error("POST /api/reviews", error);
+    if (error.message?.includes("Missing Postgres connection string")) {
       return NextResponse.json(
-        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { error: "Missing database connection (POSTGRES_URL)." },
         { status: 503 }
       );
     }
     return NextResponse.json(
-      { error: 'Nepodařilo se uložit recenzi.', detail: error.message },
+      { error: "Failed to save review.", detail: error.message },
       { status: 500 }
     );
   }

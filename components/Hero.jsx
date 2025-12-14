@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, ShieldCheck, Star, CheckCircle } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CheckCircle } from 'lucide-react';
 
 const agentTitles = {
   cz: 'Osobní makléř v Egyptě',
@@ -27,7 +27,7 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
         <div className="hero-highlights">
           {t.hero.highlights.map((item) => (
             <div key={item} className="pill" style={{ borderColor: 'rgba(255,255,255,0.18)' }}>
-              <ShieldCheck size={16} color="#f7c288" />
+              <ShieldCheck size={16} color="#d9b45a" />
               {item}
             </div>
           ))}
@@ -36,10 +36,10 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
           {[
             t.nav.about,
             language === 'cz' ? 'Ověřené projekty' : language === 'de' ? 'Geprüfte Projekte' : 'Verified projects',
-            language === 'cz' ? '24/7 podpora v češtině' : language === 'de' ? '24/7 Support' : '24/7 local support',
+            language === 'cz' ? '24/7 lokální podpora' : language === 'de' ? '24/7 Support' : '24/7 local support',
           ].map((text) => (
             <div className="support-item" key={text}>
-              <CheckCircle size={16} color="#f7c288" />
+              <CheckCircle size={16} color="#d9b45a" />
               <span>{text}</span>
             </div>
           ))}
@@ -48,7 +48,7 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
 
       <div className="hero-media">
         <img
-          src="https://images.unsplash.com/photo-1505761671935-60b3a7427bad?w=1200&h=900&fit=crop"
+          src="/uploads/hero-main.jpg"
           alt="Luxury property in Egypt"
         />
         <div className="media-overlay" />
@@ -68,7 +68,7 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
               width: 46,
               height: 46,
               borderRadius: '50%',
-              background: 'var(--gradient)',
+              background: 'linear-gradient(135deg, #0b2338, #0f7082 55%, #1fbac6 85%)',
               display: 'grid',
               placeItems: 'center',
               fontWeight: 700,

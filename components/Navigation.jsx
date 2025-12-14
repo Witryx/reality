@@ -15,7 +15,7 @@ const Navigation = ({
     <div className="nav">
       <div className="nav-left">
         <div className="brand-mark">
-          <Home size={22} color="#0b182f" />
+          <Home size={22} color="#d9b45a" />
         </div>
         <div>
           <div className="brand-name">Egypt Real Estate</div>
@@ -46,7 +46,11 @@ const Navigation = ({
         <button
           className="btn-primary"
           onClick={() => onNavigate('contact')}
-          style={{ background: 'var(--navy)', boxShadow: '0 12px 28px rgba(15,44,77,0.25)' }}
+          style={{
+            background: 'linear-gradient(135deg, #0b2338, #0f7082 55%, #1fbac6 80%)',
+            borderColor: 'rgba(217,179,106,0.6)',
+            boxShadow: '0 14px 30px rgba(7,23,40,0.24)',
+          }}
         >
           <Phone size={16} />
           {t.hero.cta1}

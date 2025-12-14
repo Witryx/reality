@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import Navigation from './components/Navigation';
 import Hero from './components/Hero';
-import PersonalIntro from './components/PersonalIntro';
 import Properties from './components/Properties';
 import Process from './components/Process';
 import About from './components/About';
@@ -85,7 +84,6 @@ const EgyptRealEstate = () => {
           onPrimaryCta={() => scrollToSection('contact')}
           onSecondaryCta={() => scrollToSection('properties')}
         />
-        <PersonalIntro t={t} onConsult={() => scrollToSection('contact')} />
         <Properties t={t} language={language} />
         <Process t={t} />
         <About t={t} language={language} />

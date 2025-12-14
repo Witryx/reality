@@ -5,7 +5,7 @@ const SectionHeader = ({ eyebrow, title, subtitle, align = 'center', tone = 'def
   return (
     <div className="section-header" style={{ textAlign: align }}>
       {eyebrow && (
-        <div className="eyebrow" style={isLight ? { color: '#f7c288' } : undefined}>
+        <div className="eyebrow" style={isLight ? { color: '#d9b45a' } : undefined}>
           {eyebrow}
         </div>
       )}

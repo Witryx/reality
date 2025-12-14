@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createProperty, fetchProperties, markPropertySold } from '../../../lib/properties';
 
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('GET /api/properties', error);
     return NextResponse.json(
-      { error: 'Nepodařilo se načíst nemovitosti.', detail: error.message },
+      { error: 'Failed to load properties.', detail: error.message },
       { status: 500 }
     );
   }
@@ -32,10 +32,7 @@ export async function POST(request) {
 
   const missing = requiredFields.filter((f) => !payload?.[f]);
   if (missing.length) {
-    return NextResponse.json(
-      { error: `Chybí povinné údaje: ${missing.join(', ')}` },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
   }
 
   try {
@@ -45,12 +42,12 @@ export async function POST(request) {
     console.error('POST /api/properties', error);
     if (error.message?.includes('Missing Postgres connection string')) {
       return NextResponse.json(
-        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { error: 'Missing database connection (POSTGRES_URL).' },
         { status: 503 }
       );
     }
     return NextResponse.json(
-      { error: 'Nepodařilo se uložit nemovitost.', detail: error.message },
+      { error: 'Failed to save property.', detail: error.message },
       { status: 500 }
     );
   }
@@ -68,25 +65,25 @@ export async function PATCH(request) {
   const { id, sold } = payload || {};
 
   if (!id) {
-    return NextResponse.json({ error: 'Chybí ID nemovitosti.' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing property ID.' }, { status: 400 });
   }
 
   try {
     const property = await markPropertySold(id, Boolean(sold));
     if (!property) {
-      return NextResponse.json({ error: 'Nemovitost nenalezena.' }, { status: 404 });
+      return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
     }
     return NextResponse.json({ property });
   } catch (error) {
     console.error('PATCH /api/properties', error);
     if (error.message?.includes('Missing Postgres connection string')) {
       return NextResponse.json(
-        { error: 'Chybí databázové připojení (POSTGRES_URL).' },
+        { error: 'Missing database connection (POSTGRES_URL).' },
         { status: 503 }
       );
     }
     return NextResponse.json(
-      { error: 'Nepodařilo se aktualizovat nemovitost.', detail: error.message },
+      { error: 'Failed to update property.', detail: error.message },
       { status: 500 }
     );
   }
