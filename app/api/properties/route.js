@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from 'next/server';
-import { createProperty, fetchProperties, markPropertySold } from '../../../lib/properties';
+import { createProperty, fetchProperties, updateProperty } from '../../../lib/properties';
 
 export const runtime = 'nodejs';
 
@@ -62,20 +62,23 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { id, sold } = payload || {};
+  const { id, sold, ...updates } = payload || {};
 
   if (!id) {
     return NextResponse.json({ error: 'Missing property ID.' }, { status: 400 });
   }
 
   try {
-    const property = await markPropertySold(id, Boolean(sold));
+    const property = await updateProperty({ id, sold, ...updates });
     if (!property) {
       return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
     }
     return NextResponse.json({ property });
   } catch (error) {
     console.error('PATCH /api/properties', error);
+    if (error.message && ['No fields to update.', 'Invalid property id.'].includes(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error.message?.includes('Missing Postgres connection string')) {
       return NextResponse.json(
         { error: 'Missing database connection (POSTGRES_URL).' },
