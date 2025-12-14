@@ -38,7 +38,6 @@ export const globalStyles = `
     color: var(--text);
     font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background-attachment: fixed;
   }
 
   a { color: inherit; text-decoration: none; }
@@ -48,9 +47,8 @@ export const globalStyles = `
   .page {
     min-height: 100vh;
     background:
-      radial-gradient(120% 90% at 16% 24%, rgba(31,186,198,0.1), transparent 42%),
-      radial-gradient(120% 90% at 80% 60%, rgba(7,28,41,0.08), transparent 48%),
-      repeating-linear-gradient(120deg, rgba(7,28,41,0.04) 0 12px, transparent 12px 28px),
+      radial-gradient(120% 90% at 16% 24%, rgba(31,186,198,0.08), transparent 42%),
+      radial-gradient(120% 90% at 80% 60%, rgba(7,28,41,0.06), transparent 48%),
       linear-gradient(180deg, rgba(248,240,226,0.92), rgba(237,213,174,0.9), rgba(229,195,150,0.9));
   }
   .section {
@@ -66,9 +64,9 @@ export const globalStyles = `
     position: absolute;
     inset: auto;
     pointer-events: none;
-    filter: blur(8px);
-    mix-blend-mode: soft-light;
-    opacity: 0.55;
+    filter: blur(4px);
+    mix-blend-mode: normal;
+    opacity: 0.35;
   }
   .section::before {
     width: 420px;
@@ -76,8 +74,7 @@ export const globalStyles = `
     left: -140px;
     top: 40px;
     background:
-      radial-gradient(90% 70% at 60% 40%, rgba(12,82,96,0.12), transparent 60%),
-      repeating-linear-gradient(125deg, rgba(12,82,96,0.1) 0 16px, transparent 16px 34px);
+      radial-gradient(90% 70% at 60% 40%, rgba(12,82,96,0.12), transparent 60%);
   }
   .section::after {
     width: 360px;
@@ -85,8 +82,7 @@ export const globalStyles = `
     right: -120px;
     bottom: -40px;
     background:
-      radial-gradient(80% 70% at 40% 30%, rgba(217,179,106,0.16), transparent 60%),
-      repeating-linear-gradient(145deg, rgba(31,186,198,0.12) 0 12px, transparent 12px 28px);
+      radial-gradient(80% 70% at 40% 30%, rgba(217,179,106,0.16), transparent 60%);
   }
   .container { max-width: 1280px; margin: 0 auto; position: relative; z-index: 1; }
 
@@ -404,12 +400,11 @@ export const globalStyles = `
     width: 720px;
     height: 720px;
     background:
-      repeating-linear-gradient(130deg, rgba(255,255,255,0.1) 0 12px, transparent 12px 28px),
       radial-gradient(80% 60% at 40% 50%, rgba(31,186,198,0.18), transparent 60%),
       radial-gradient(90% 70% at 70% 60%, rgba(217,179,106,0.16), transparent 64%);
     mix-blend-mode: screen;
-    opacity: 0.55;
-    filter: blur(12px);
+    opacity: 0.4;
+    filter: blur(8px);
     pointer-events: none;
   }
 
@@ -453,7 +448,7 @@ export const globalStyles = `
     position: relative;
     border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 34px 70px rgba(7,23,40,0.36);
+    box-shadow: 0 26px 50px rgba(7,23,40,0.26);
     background: linear-gradient(160deg, rgba(7,23,40,0.92), rgba(12,82,96,0.9));
     border: 1px solid rgba(217,179,106,0.45);
   }
@@ -484,7 +479,7 @@ export const globalStyles = `
     background: linear-gradient(145deg, rgba(255,252,245,0.94), rgba(242,224,194,0.92));
     border: 1px solid rgba(217,179,106,0.4);
     color: var(--navy);
-    box-shadow: 0 20px 40px rgba(7,23,40,0.26);
+    box-shadow: 0 16px 30px rgba(7,23,40,0.2);
   }
 
   .badge {
@@ -550,7 +545,7 @@ export const globalStyles = `
     border: 1px solid rgba(217,179,106,0.32);
     border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 24px 52px rgba(7,23,40,0.16);
+    box-shadow: 0 20px 40px rgba(7,23,40,0.16);
     transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   }
 
@@ -721,7 +716,7 @@ export const globalStyles = `
     justify-content: space-between;
     align-items: center;
     gap: 14px;
-    box-shadow: 0 26px 52px rgba(7,23,40,0.28);
+    box-shadow: 0 18px 36px rgba(7,23,40,0.22);
     border: 1px solid rgba(217,179,106,0.45);
   }
 

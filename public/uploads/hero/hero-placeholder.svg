@@ -1,0 +1,13 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b2338" stop-opacity="0.92" />
+      <stop offset="55%" stop-color="#0f7082" stop-opacity="0.88" />
+      <stop offset="100%" stop-color="#f0c77b" stop-opacity="0.75" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#g)" />
+  <circle cx="180" cy="180" r="240" fill="#1fbac6" fill-opacity="0.14" />
+  <circle cx="980" cy="120" r="260" fill="#d9b45a" fill-opacity="0.16" />
+  <text x="60" y="700" fill="#f8f1e4" font-family="Montserrat, Arial, sans-serif" font-size="48" font-weight="600">Add your hero image here</text>
+</svg>

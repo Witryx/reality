@@ -16,19 +16,16 @@ export async function GET(request) {
     const { rows, total, average, dbAvailable } = await fetchReviews({ language, limit: pageSize, offset });
 
     if (dbAvailable === false) {
-      return NextResponse.json(
-        {
-          reviews: [],
-          total: 0,
-          average: 0,
-          page,
-          pageSize,
-          language,
-          dbAvailable,
-          error: "Missing database connection (POSTGRES_URL).",
-        },
-        { status: 503 }
-      );
+      return NextResponse.json({
+        reviews: [],
+        total: 0,
+        average: 0,
+        page,
+        pageSize,
+        language,
+        dbAvailable,
+        error: "Missing database connection (POSTGRES_URL).",
+      });
     }
 
     return NextResponse.json({
@@ -54,7 +51,7 @@ export async function GET(request) {
         error: "Failed to load reviews from database.",
         detail: error.message,
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

@@ -48,8 +48,8 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
 
       <div className="hero-media">
         <img
-          src="/uploads/hero-main.jpg"
-          alt="Luxury property in Egypt"
+          src="/uploads/hero/hero-placeholder.svg"
+          alt="Placeholder – add your own hero image"
         />
         <div className="media-overlay" />
         <div className="stat-card">
