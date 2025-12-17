@@ -15,19 +15,6 @@ export async function GET(request) {
   try {
     const { rows, total, average, dbAvailable } = await fetchReviews({ language, limit: pageSize, offset });
 
-    if (dbAvailable === false) {
-      return NextResponse.json({
-        reviews: [],
-        total: 0,
-        average: 0,
-        page,
-        pageSize,
-        language,
-        dbAvailable,
-        error: "Missing database connection (POSTGRES_URL).",
-      });
-    }
-
     return NextResponse.json({
       reviews: rows || [],
       total,
@@ -89,12 +76,6 @@ export async function POST(request) {
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {
     console.error("POST /api/reviews", error);
-    if (error.message?.includes("Missing Postgres connection string")) {
-      return NextResponse.json(
-        { error: "Missing database connection (POSTGRES_URL)." },
-        { status: 503 }
-      );
-    }
     return NextResponse.json(
       { error: "Failed to save review.", detail: error.message },
       { status: 500 }
