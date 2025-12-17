@@ -18,8 +18,8 @@ const Navigation = ({
           <Home size={22} color="#d9b45a" />
         </div>
         <div>
-          <div className="brand-name">Egypt Real Estate</div>
-          <div style={{ color: 'var(--muted)', fontSize: 13 }}>Red Sea · CZ / EN / DE</div>
+          <div className="brand-name">Egyptsko Česká Reality</div>
+          <div style={{ color: 'var(--muted)', fontSize: 13 }}>Hurghada · Nemovitosti</div>
         </div>
       </div>
 

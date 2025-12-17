@@ -3,18 +3,18 @@ export const translations = {
     nav: {
       properties: 'Nabídka',
       howItWorks: 'Spolupráce',
-      about: 'O mně',
+      about: 'O nás',
       reviews: 'Reference',
       contact: 'Kontakt',
     },
     hero: {
       eyebrow: 'Egypt Real Estate',
-      title: 'Váš prémiový průvodce realitami v Egyptě',
+      title: 'Pomáháme vám koupit nemovitost v Egyptě bez zbytečných rizik',
       subtitle:
         'Pomáháme českým, anglicky i německy mluvícím klientům bezpečně koupit, prodat nebo pronajmout nemovitost u moře. Kompletní servis včetně právního zajištění.',
       cta1: 'Konzultace zdarma',
       cta2: 'Zobrazit nabídky',
-      highlights: ['8+ let zkušeností na egyptském trhu', 'Osobní podpora v CZ / EN / DE', 'Bezpečná právní a finanční kontrola'],
+      highlights: [' Mnoho zkušeností na egyptském trhu', ' Individuální přístup ke každému klientovi', ' Důraz na bezpečný a transparentní nákup'],
     },
     properties: {
       title: 'Aktuální nabídka nemovitostí',
@@ -31,19 +31,25 @@ export const translations = {
       title: 'Jak probíhá spolupráce',
       subtitle: 'Transparentní postup od prvního hovoru až po předání klíčů a následnou správu nemovitosti.',
       steps: [
-        { title: 'Průzkum trhu', desc: 'Online konzultace, definice rozpočtu, lokality a investičního cíle.' },
-        { title: 'Výběr nemovitosti', desc: 'Výběr 3–6 konkrétních projektů, video prohlídky a cenová srovnání.' },
-        { title: 'Profesionální marketing', desc: '3D půdorysy, prémiové fotky a prezentace pro prodej nebo pronájem.' },
-        { title: 'Kompletní servis', desc: 'Organizace prohlídek, rezervace, smlouvy, překlady i komunikace s developerem.' },
-        { title: 'Právní a finanční podpora', desc: 'Due diligence, advokát, úschova, bezpečné platby v CZK i EUR.' },
-        { title: 'Poprodejní služby', desc: 'Předání, zajištění energií, správa pronájmu a pravidelný reporting.' },
+        { title: 'Průzkum trhu', desc: 'Online konzultace, upřesnění rozpočtu, preferované lokality a investičního cíle.' },
+        { title: 'Výběr nemovitosti', desc: 'Výběr 3–6 konkrétních nabídek dle vašich požadavků, video prohlídky a cenové srovnání.' },
+        { title: 'Profesionální marketing', desc: 'Kvalitní fotografie, video materiály a přehledné podklady od developera pro rozhodnutí o koupi.' },
+        { title: 'Kompletní servis', desc: 'Organizace prohlídek, rezervace, smluvní dokumentace.' },
+        { title: 'Právní a finanční podpora', desc: 'Spolupráce s místními právními partnery, kontrola dokumentace, úschova a bezpečné platby v CZK i EUR.' },
+        { title: 'Poprodejní služby', desc: 'Předání nemovitosti, asistence při přepisu energií a základní podpora při správě nebo pronájmu.' },
       ],
     },
     about: {
-      title: 'O mně',
-      subtitle: 'Martin Novák – realitní makléř specializovaný na Egypt',
+      title: 'O nás',
+      subtitle: 'Jsme realitní kancelář specializovaná na prodej nemovitostí v Egyptě',
       story:
-        'Realitám na egyptském pobřeží se věnuji přes osm let. Spojuji českou preciznost s detailní znalostí místního trhu, developerů a právního rámce. Mluvím česky, anglicky i německy a celý proces vám vysvětlím krok za krokem.\n\nVěřím v transparentní komunikaci, jasné smlouvy a dlouhodobé partnerství. Mým cílem je, aby nákup nebo prodej v zahraničí byl bezpečný, srozumitelný a zároveň příjemný zážitek.',
+        'Jsme egyptsko-český realitní projekt, který vznikl z osobní zkušenosti s nákupem nemovitostí v Egyptě a z potřeby nabídnout srozumitelný a bezpečný proces pro klienty z Evropy.' + '\n\n' +
+
+'Zaměřujeme se na prodej, nákup a pronájem nemovitostí u moře, především v lokalitách Rudého moře. Klientům poskytujeme osobní podporu v češtině, angličtině a němčině a provázíme je celým procesem – od prvního kontaktu až po předání nemovitosti a následnou péči.' + '\n\n' +
+
+'Spolupracujeme s prověřenými místními developery a právními partnery. Každou nabídku pečlivě posuzujeme s důrazem na transparentnost, reálné informace a bezpečnost transakce. Nehledáme rychlé obchody, ale dlouhodobou důvěru a spokojenost klientů.' + '\n\n' +
+
+'Naším cílem je zjednodušit cestu k nemovitosti v Egyptě, odstranit zbytečná rizika a nabídnout přístup, který kombinuje evropské očekávání s místní znalostí prostředí.',
     },
     reviews: {
       title: 'Reference klientů',
@@ -74,22 +80,22 @@ export const translations = {
         success: 'Děkujeme za zprávu! Ozveme se do 24 hodin.',
       },
       info: {
-        phone: '+420 777 123 456',
+        phone: '+420 723 063 837',
         email: 'hello@egyptrealestate.cz',
         whatsapp: 'WhatsApp chat',
         address: 'Kancelář: Hurghada Marina & online',
       },
     },
     footer: {
-      tagline: 'Prémiové reality v Egyptě se službou na míru.',
-      rights: '© 2024 Egypt Real Estate. Všechna práva vyhrazena.',
+      tagline: 'Pomáháme vám koupit nemovitost v Egyptě bez zbytečných rizik.',
+      rights: '© 2025 Egyptsko Česká Reality. Všechna práva vyhrazena.',
     },
     personal: {
       title: 'Vítám vás, vaše opora v egyptských realitách',
-      subtitle: 'Jsem Martin Novák a osobně vás provedu celým procesem – od prvního hovoru až po předání klíčů.',
+      subtitle: 'Jsme realitní kancelář specializovaná na prodej nemovitostí v Egyptě.',
       bullets: [
-        'Šetřím vám čas – online konzultace, prohlídky na dálku',
-        'Zprostředkuji bezpečný nákup i prodej v CZ / EN / DE',
+        'Šetříme vám čas – online konzultace, prohlídky na dálku',
+        'Zprostředkováváme bezpečný nákup nemovitostí v Egyptě',
         'Právní, finanční a poprodejní servis pod jednou střechou',
       ],
       cta: 'Domluvit konzultaci',

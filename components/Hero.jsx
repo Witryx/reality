@@ -28,9 +28,8 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
         </div>
         <div className="hero-support" style={{ justifyContent: 'center' }}>
           {[
-            t.nav.about,
-            language === 'cz' ? 'Overene projekty' : language === 'de' ? 'Geprufte Projekte' : 'Verified projects',
-            language === 'cz' ? '24/7 lokalni podpora' : language === 'de' ? '24/7 Support' : '24/7 local support',
+            language === 'cz' ? 'Ověřené projekty' : language === 'de' ? 'Geprüfte Projekte' : 'Verified projects',
+            language === 'cz' ? '24/7 podpora' : language === 'de' ? '24/7 Support' : '24/7 support',
           ].map((text) => (
             <div className="support-item" key={text}>
               <CheckCircle size={16} color="#d9b45a" />

@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Egypt Real Estate',
-  description: 'Prémiové nemovitosti v Egyptě – CZ / EN / DE',
+  title: 'Egyptsko Česká Reality',
+  description: 'Nemovitosti v Egyptě',
 };
 
 export default function RootLayout({ children }) {

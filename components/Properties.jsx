@@ -5,7 +5,6 @@ import SectionHeader from "./SectionHeader";
 const Properties = ({ t, language = "cz" }) => {
   const [selected, setSelected] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [showSold, setShowSold] = useState(false);
   const [data, setData] = useState({ active: [], sold: [] });
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -75,7 +74,7 @@ const Properties = ({ t, language = "cz" }) => {
     return () => controller.abort();
   }, [language]);
 
-  const listings = showSold ? data.sold : data.active;
+  const listings = data.active;
   const selectedImages = selected
     ? (() => {
         const imgs = toImages(selected.images);
@@ -103,37 +102,6 @@ const Properties = ({ t, language = "cz" }) => {
           subtitle={t.properties.subtitle}
         />
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 26, flexWrap: "wrap" }}>
-          <button
-            className="btn-secondary"
-            style={{
-              background: showSold
-                ? "linear-gradient(135deg, #fffaf1, #f4e6d0)"
-                : "linear-gradient(135deg, #0b2338, #0f7082 60%, #1fbac6)",
-              color: showSold ? "var(--navy)" : "#fff",
-              borderColor: showSold ? "rgba(217,179,106,0.35)" : "rgba(217,179,106,0.6)",
-              boxShadow: showSold ? "0 10px 24px rgba(7,23,40,0.08)" : "0 12px 28px rgba(7,23,40,0.24)",
-            }}
-            onClick={() => setShowSold(false)}
-          >
-            {t.properties.toggles.active}
-          </button>
-          <button
-            className="btn-secondary"
-            style={{
-              background: showSold
-                ? "linear-gradient(135deg, #0b2338, #0f7082 60%, #1fbac6)"
-                : "linear-gradient(135deg, #fffaf1, #f4e6d0)",
-              color: showSold ? "#fff" : "var(--navy)",
-              borderColor: showSold ? "rgba(217,179,106,0.6)" : "rgba(217,179,106,0.35)",
-              boxShadow: showSold ? "0 12px 28px rgba(7,23,40,0.24)" : "0 10px 24px rgba(7,23,40,0.08)",
-            }}
-            onClick={() => setShowSold(true)}
-          >
-            {t.properties.toggles.sold}
-          </button>
-        </div>
-
         {loading && <div style={{ textAlign: "center", color: "#6b7280", marginBottom: 12 }}>Načítám...</div>}
         {loadError && <div style={{ textAlign: "center", color: "#b42318", marginBottom: 12 }}>{loadError}</div>}
 
@@ -154,14 +122,11 @@ const Properties = ({ t, language = "cz" }) => {
                     <img
                       src={cover}
                       alt={property.name}
-                      style={showSold ? { filter: "grayscale(1)" } : undefined}
                     />
                   );
                 })()}
                 {(() => {
-                  const tagLabel = property.sold
-                    ? (language === "cz" ? "PROD\u00c1NO" : language === "de" ? "VERKAUFT" : "SOLD")
-                    : property.tag;
+                  const tagLabel = property.tag;
                   return tagLabel ? <div className="tag-chip">{tagLabel}</div> : null;
                 })()}
                 <div className="price-tag">{property.price}</div>

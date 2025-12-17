@@ -11,8 +11,8 @@ const Footer = ({ t, onNavigate }) => (
               <Home size={20} color="#d9b45a" />
             </div>
             <div>
-              <div className="brand-name" style={{ color: '#f6efdd' }}>Egypt Real Estate</div>
-              <div style={{ fontSize: 13, color: '#d8e4f2' }}>Red Sea · Premium Realty</div>
+              <div className="brand-name" style={{ color: '#f6efdd' }}>Egyptsko Česká Reality</div>
+              <div style={{ fontSize: 13, color: '#d8e4f2' }}>Hurghada · Nemovitosti</div>
             </div>
           </div>
           <p style={{ color: '#f6efdd', lineHeight: 1.7, maxWidth: 420 }}>{t.footer.tagline}</p>

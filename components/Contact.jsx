@@ -3,9 +3,9 @@ import { Mail, MessageCircle, Phone, Send } from 'lucide-react';
 import SectionHeader from './SectionHeader';
 
 const microCopy = {
-  cz: 'Ozveme se do 24 hodin a připravíme vám konkrétní scénáře nákupu nebo prodeje.',
-  en: 'We reply within one business day with tailored options for your goals.',
-  de: 'Wir melden uns innerhalb von 24 Stunden mit passenden Vorschlägen.',
+  cz: "Jsme casto primo v Egypte, proto doporucujeme WhatsApp pro volani i zpravy. Pokud by hlavni makler nebyl dostupny, zavolejte prosim na ceske cislo nize.",
+  en: "We are often on the ground in Egypt, so WhatsApp is best for calls or messages. If the lead agent is unavailable, please call the Czech number below.",
+  de: "Wir sind haufig direkt in Aegypten, daher am besten per WhatsApp anrufen oder schreiben. Wenn der Hauptmakler nicht erreichbar ist, rufen Sie bitte die tschechische Nummer unten an.",
 };
 
 const Contact = ({ t, formData, onChange, onSubmit, language, formStatus = {} }) => {
@@ -161,3 +161,4 @@ const Contact = ({ t, formData, onChange, onSubmit, language, formStatus = {} })
 };
 
 export default Contact;
+
