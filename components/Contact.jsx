@@ -8,7 +8,12 @@ const microCopy = {
   de: 'Wir melden uns innerhalb von 24 Stunden mit passenden Vorschlägen.',
 };
 
-const Contact = ({ t, formData, onChange, onSubmit, language }) => (
+const Contact = ({ t, formData, onChange, onSubmit, language, formStatus = {} }) => {
+  const sending = Boolean(formStatus.sending);
+  const error = formStatus.error;
+  const success = formStatus.success;
+
+  return (
   <section
     id="contact"
     className="section"
@@ -50,17 +55,22 @@ const Contact = ({ t, formData, onChange, onSubmit, language }) => (
               <Mail size={16} />
               {language === 'cz' ? 'Napište nám email' : language === 'de' ? 'Schreiben Sie uns' : 'Email us'}
             </button>
-            <button
+            <a
               className="btn-primary"
+              href="https://wa.me/420777123456"
+              target="_blank"
+              rel="noreferrer"
               style={{
-                background: 'linear-gradient(135deg, #f0c77b, #1fbac6)',
+                background: 'linear-gradient(135deg, #25d366, #1ebe57 60%, #0f9f3d)',
                 color: '#0b2338',
-                boxShadow: '0 14px 32px rgba(7,23,40,0.3)',
+                boxShadow: '0 14px 32px rgba(10, 157, 74, 0.3)',
+                textDecoration: 'none',
+                border: '1px solid rgba(12,140,65,0.4)',
               }}
             >
               <MessageCircle size={16} />
               WhatsApp
-            </button>
+            </a>
           </div>
           <div
             className="contact-info"
@@ -132,14 +142,22 @@ const Contact = ({ t, formData, onChange, onSubmit, language }) => (
               placeholder={t.contact.form.message}
             />
           </div>
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-            {t.contact.form.send}
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={sending}
+            style={{ width: '100%', justifyContent: 'center', opacity: sending ? 0.85 : 1 }}
+          >
+            {sending ? `${t.contact.form.send}...` : t.contact.form.send}
             <Send size={16} />
           </button>
+          {error && <div className="review-status error" style={{ marginTop: 8 }}>{error}</div>}
+          {success && <div className="review-status success" style={{ marginTop: 8 }}>{success}</div>}
         </form>
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default Contact;

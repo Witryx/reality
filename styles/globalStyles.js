@@ -377,9 +377,11 @@ export const globalStyles = `
     position: relative;
     overflow: hidden;
     background:
-      radial-gradient(120% 120% at 12% 6%, rgba(217,179,106,0.25), transparent 52%),
-      radial-gradient(110% 110% at 86% 6%, rgba(31,186,198,0.22), transparent 54%),
-      linear-gradient(135deg, rgba(7,23,40,0.85), rgba(12,82,96,0.72));
+      linear-gradient(135deg, rgba(7,23,40,0.78), rgba(12,82,96,0.48)),
+      url('/pozadi.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 
   .hero::before {
@@ -412,7 +414,17 @@ export const globalStyles = `
     display: grid;
     grid-template-columns: 1.05fr 0.95fr;
     gap: 60px;
+<<<<<<< ours
     align-items: center;
+  }
+  .hero-grid.single {
+    display: flex;
+    flex-direction: column;
+=======
+>>>>>>> theirs
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
   }
 
   .hero-copy .display {
@@ -532,9 +544,15 @@ export const globalStyles = `
 
   .listing-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 420px));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 26px;
     justify-content: center;
+  }
+  @media (max-width: 1024px) {
+    .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .listing-grid { grid-template-columns: 1fr; }
   }
 
   .listing-card {
@@ -594,6 +612,7 @@ export const globalStyles = `
     display: grid;
     place-items: center;
     padding: 20px;
+    overflow: hidden;
     z-index: 50;
   }
 
@@ -607,6 +626,8 @@ export const globalStyles = `
     padding: 22px;
     position: relative;
     border: 1px solid rgba(217,179,106,0.38);
+    max-height: 92vh;
+    overflow: hidden;
   }
 
   .close-btn {
@@ -626,9 +647,11 @@ export const globalStyles = `
 
   .detail-grid {
     display: grid;
-    grid-template-columns: 1.05fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
-    align-items: center;
+    align-items: start;
+    max-height: 92vh;
+    overflow: auto;
   }
 
   .review-modal { max-width: 980px; padding: 28px 26px; }
@@ -675,6 +698,8 @@ export const globalStyles = `
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 18px 34px rgba(7,23,40,0.18);
+    position: sticky;
+    top: 0;
   }
 
   .detail-image img {
@@ -689,6 +714,16 @@ export const globalStyles = `
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 10px;
+  }
+
+  .detail-info {
+    padding: 18px 22px 24px;
+    align-self: start;
+  }
+
+  body.detail-open {
+    overflow: hidden;
+    touch-action: none;
   }
 
   .thumb-btn {

@@ -6,7 +6,6 @@ import Hero from './components/Hero';
 import Properties from './components/Properties';
 import Process from './components/Process';
 import About from './components/About';
-import Reviews from './components/Reviews';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -22,6 +21,7 @@ const EgyptRealEstate = () => {
     phone: '',
     message: '',
   });
+  const [formStatus, setFormStatus] = useState({ sending: false, error: '', success: '' });
 
   const t = useMemo(() => translations[language], [language]);
 
@@ -54,10 +54,24 @@ const EgyptRealEstate = () => {
     setMobileOpen(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(t.contact.form.success);
-    setFormData({ name: '', email: '', phone: '', message: '' });
+    setFormStatus({ sending: true, error: '', success: '' });
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || t.contact.form.error || 'Failed to send.');
+      }
+      setFormData({ name: '', email: '', phone: '', message: '' });
+      setFormStatus({ sending: false, error: '', success: t.contact.form.success });
+    } catch (error) {
+      setFormStatus({ sending: false, error: error.message || t.contact.form.error, success: '' });
+    }
   };
 
   const handleChange = (e) => {
@@ -87,13 +101,13 @@ const EgyptRealEstate = () => {
         <Properties t={t} language={language} />
         <Process t={t} />
         <About t={t} language={language} />
-        <Reviews t={t} language={language} />
         <Contact
           t={t}
           language={language}
           formData={formData}
           onChange={handleChange}
           onSubmit={handleSubmit}
+          formStatus={formStatus}
         />
       </main>
 

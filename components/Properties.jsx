@@ -9,6 +9,7 @@ const Properties = ({ t, language = "cz" }) => {
   const [data, setData] = useState({ active: [], sold: [] });
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const toImages = (value) => {
     if (Array.isArray(value)) return value.filter(Boolean);
@@ -35,12 +36,15 @@ const Properties = ({ t, language = "cz" }) => {
   };
 
   useEffect(() => {
-    setData({ active: [], sold: [] });
-    setLoadError("");
-  }, [language, t]);
-
-  useEffect(() => {
     setActiveImageIndex(0);
+    setDescriptionExpanded(false);
+    if (selected) {
+      document.body.classList.add("detail-open");
+    } else {
+      document.body.classList.remove("detail-open");
+    }
+
+    return () => document.body.classList.remove("detail-open");
   }, [selected]);
 
   useEffect(() => {
@@ -48,8 +52,9 @@ const Properties = ({ t, language = "cz" }) => {
 
     const load = async () => {
       setLoading(true);
+      setLoadError("");
       try {
-        const res = await fetch(`/api/properties?lang=${language}`, { signal: controller.signal });
+        const res = await fetch(`/api/properties?lang=all`, { signal: controller.signal });
         const resData = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(resData?.error || "Nepodarilo se nacist nemovitosti.");
         const list = Array.isArray(resData.properties) ? resData.properties : [];
@@ -68,7 +73,7 @@ const Properties = ({ t, language = "cz" }) => {
     load();
 
     return () => controller.abort();
-  }, [language, t]);
+  }, [language]);
 
   const listings = showSold ? data.sold : data.active;
   const selectedImages = selected
@@ -243,7 +248,31 @@ const Properties = ({ t, language = "cz" }) => {
                   </a>
                 </div>
                 <div style={{ color: "#1a2a38", lineHeight: 1.6, marginBottom: 12 }}>
-                  {t.properties.subtitle}
+                  {(() => {
+                    const text = selected.description || t.properties.subtitle;
+                    if (!text) return null;
+                    if (text.length <= 150 || descriptionExpanded) return text;
+                    return (
+                      <>
+                        {text.slice(0, 150)}...
+                        <button
+                          type="button"
+                          onClick={() => setDescriptionExpanded(true)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#0f7082",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            marginLeft: 6,
+                            padding: 0,
+                          }}
+                        >
+                          {language === "cz" ? "více" : language === "de" ? "mehr" : "more"}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div style={{ display: "grid", gap: 8 }}>
                   <button className="btn-primary" style={{ justifyContent: "center" }}>

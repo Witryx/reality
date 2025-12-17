@@ -23,7 +23,7 @@ const Footer = ({ t, onNavigate }) => (
             Menu
           </h4>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            {['properties', 'howItWorks', 'about', 'reviews', 'contact'].map((section) => (
+            {['properties', 'howItWorks', 'about', 'contact'].map((section) => (
               <button
                 key={section}
                 onClick={() => onNavigate(section)}

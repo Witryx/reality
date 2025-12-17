@@ -1,7 +1,7 @@
 import React from 'react';
 import { Home, Menu, Phone, X } from 'lucide-react';
 
-const navOrder = ['properties', 'howItWorks', 'about', 'reviews', 'contact'];
+const navOrder = ['properties', 'howItWorks', 'about', 'contact'];
 
 const Navigation = ({
   t,

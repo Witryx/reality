@@ -5,7 +5,7 @@ import { ArrowLeftRight, CheckCircle2, Loader2, Pencil, RefreshCw, UploadCloud }
 import { translations } from '../../content/translations';
 
 const languages = ['cz', 'en', 'de'];
-const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '' };
+const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
 
 const splitProperties = (list = []) => {
   const active = [];
@@ -31,6 +31,19 @@ const toImages = (value) => {
   return [];
 };
 
+const toNumberOrNull = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const readJsonSafe = async (res) => {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
+
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
   const [formAuth, setFormAuth] = useState({ user: '', pass: '' });
@@ -46,6 +59,7 @@ const AdminPage = () => {
   const [savingNew, setSavingNew] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
@@ -108,17 +122,19 @@ const AdminPage = () => {
     const payload = {
       ...prop,
       language: lang,
-      sqm: prop.sqm || '0',
-      rooms: prop.rooms || '0',
-      tag: prop.tag || 'Nova',
-    };
+      sqm: toNumberOrNull(prop.sqm),
+      rooms: toNumberOrNull(prop.rooms),
+        tag: prop.tag || 'Nova',
+        description: prop.description || '',
+      };
     const res = await fetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json().catch(() => ({}));
+    const data = await readJsonSafe(res);
     if (!res.ok) throw new Error(data?.error || 'Ulozeni selhalo.');
+    if (!data?.property) throw new Error('Neplatna odpoved serveru.');
     let created = data.property;
     if (sold) {
       const toggleRes = await fetch('/api/properties', {
@@ -185,9 +201,10 @@ const AdminPage = () => {
       const payload = {
         ...newProperty,
         language: lang,
-        sqm: newProperty.sqm || '0',
-        rooms: newProperty.rooms || '0',
+        sqm: toNumberOrNull(newProperty.sqm),
+        rooms: toNumberOrNull(newProperty.rooms),
         tag: newProperty.tag || 'Nova',
+        description: newProperty.description || '',
         images: uploaded,
         image: uploaded[0],
       };
@@ -196,8 +213,9 @@ const AdminPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || 'Ulozeni selhalo.');
+      if (!data?.property) throw new Error('Neplatna odpoved serveru.');
 
       applyUpdate(data.property);
       setNewProperty(blankProperty);
@@ -232,6 +250,31 @@ const AdminPage = () => {
     }
   };
 
+  const removeProperty = async (prop) => {
+    setStatus('');
+    setError('');
+    setDeletingId(prop.id || prop.name);
+    try {
+      const ensured = await ensurePersistedProperty(prop);
+      const res = await fetch('/api/properties', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ensured.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Smazani selhalo.');
+      setProperties((prev) => ({
+        active: (prev.active || []).filter((item) => item.id !== ensured.id),
+        sold: (prev.sold || []).filter((item) => item.id !== ensured.id),
+      }));
+      setStatus('Nemovitost odstranena.');
+    } catch (err) {
+      setError(err.message || 'Smazani selhalo.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const startEdit = async (prop) => {
     setStatus('');
     setError('');
@@ -242,6 +285,7 @@ const AdminPage = () => {
       setEditing({
         ...ensured,
         images: cover,
+        description: ensured.description || '',
       });
       setEditFiles([]);
     } catch (err) {
@@ -272,6 +316,7 @@ const AdminPage = () => {
         ...editing,
         id: editing.id,
         language: lang,
+        description: editing.description || '',
         images: mergedImages,
         image: mergedImages.length ? mergedImages[0] : null,
       };
@@ -432,6 +477,12 @@ const AdminPage = () => {
                     value={newProperty.tag}
                     onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })}
                   />
+                  <textarea
+                    style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+                    placeholder="Popis / detail nemovitosti"
+                    value={newProperty.description}
+                    onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
+                  />
                   <label style={uploadBox}>
                     <div>
                       <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Nahrajte fotky</div>
@@ -503,6 +554,14 @@ const AdminPage = () => {
                                 Upravit
                               </button>
                               <button
+                                style={dangerBtn}
+                                onClick={() => removeProperty(prop)}
+                                disabled={deletingId === (prop.id || prop.name)}
+                              >
+                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
+                                Smazat
+                              </button>
+                              <button
                                 style={{ ...pillBtn, background: '#102a42', color: '#fff' }}
                                 onClick={() => toggleSold(prop, true)}
                                 disabled={togglingId === (prop.id || prop.name)}
@@ -547,6 +606,14 @@ const AdminPage = () => {
                               <button style={ghostBtn} onClick={() => startEdit(prop)}>
                                 <Pencil size={16} />
                                 Upravit
+                              </button>
+                              <button
+                                style={dangerBtn}
+                                onClick={() => removeProperty(prop)}
+                                disabled={deletingId === (prop.id || prop.name)}
+                              >
+                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
+                                Smazat
                               </button>
                               <button
                                 style={{ ...pillBtn, background: '#fff', color: '#0f2c4d', borderColor: '#d28b37' }}
@@ -618,6 +685,12 @@ const AdminPage = () => {
                       placeholder="Stitek"
                       value={editing.tag || ''}
                       onChange={(e) => setEditing({ ...editing, tag: e.target.value })}
+                    />
+                    <textarea
+                      style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+                      placeholder="Popis / detail nemovitosti"
+                      value={editing.description || ''}
+                      onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                     />
 
                     <div style={{ display: 'grid', gap: 6 }}>
@@ -782,6 +855,13 @@ const ghostBtn = {
   background: '#fff',
   color: '#0f2c4d',
   borderColor: '#d7dce5',
+};
+
+const dangerBtn = {
+  ...pillBtn,
+  background: '#fef2f2',
+  color: '#b91c1c',
+  borderColor: '#fecdd3',
 };
 
 const listHeader = {
