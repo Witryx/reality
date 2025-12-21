@@ -104,24 +104,29 @@ export const translations = {
   en: {
     nav: {
       properties: 'Listings',
-      howItWorks: 'Process',
-      about: 'About',
+      howItWorks: 'How we work',
+      about: 'About us',
       reviews: 'Reviews',
       contact: 'Contact',
     },
     hero: {
       eyebrow: 'Egypt Real Estate',
-      title: 'Your premium guide to property in Egypt',
+      title: 'We help you buy property in Egypt without unnecessary risk',
       subtitle:
-        'Helping Czech, English and German speaking clients buy, sell or rent property by the Red Sea with confidence. Full legal, financial and after-sales support.',
-      cta1: 'Book a free call',
-      cta2: 'See listings',
-      highlights: ['8+ years of local expertise', 'Bespoke support in CZ / EN / DE', 'Verified legal and financial partners'],
+        'We help Czech-, English- and German-speaking clients safely buy, sell or rent property by the sea. Complete service including legal support.',
+      cta1: 'Free consultation',
+      cta2: 'View listings',
+      highlights: [
+        'Extensive experience on the Egyptian market',
+        'Personal approach to every client',
+        'Focus on safe and transparent purchases',
+      ],
     },
     properties: {
       title: 'Current property listings',
-      subtitle: 'Curated homes and investments in Hurghada, Sharm, El Gouna and Soma Bay. Designed for lifestyle buyers and investors alike.',
-      sqm: 'sqm',
+      subtitle:
+        'Carefully selected projects in Hurghada, Sharm, El Gouna and other premium locations. Ideal for living and investment.',
+      sqm: 'm²',
       rooms: 'rooms',
       detail: 'Property details',
       toggles: { active: 'Available', sold: 'Sold' },
@@ -129,89 +134,122 @@ export const translations = {
       soldItems: [],
     },
     howItWorks: {
-      title: 'How we work together',
-      subtitle: 'A transparent, concierge-style process from discovery to handover and ongoing management.',
+      title: 'How the collaboration works',
+      subtitle: 'Transparent process from the first call to handover and ongoing management.',
       steps: [
-        { title: 'Market research', desc: 'Clarify budget, purpose and location during a free consultation.' },
-        { title: 'Property selection', desc: 'Shortlist 3–6 options with video tours, yield modeling and comparisons.' },
-        { title: 'Premium marketing', desc: '3D floorplans, editorial photos and polished presentations for sale or rental.' },
-        { title: 'Full-service handling', desc: 'Viewings, reservations, contracts, translations and developer coordination.' },
-        { title: 'Legal & finance', desc: 'Due diligence, trusted lawyers, escrow and secure CZK/EUR payments.' },
-        { title: 'After-sales care', desc: 'Handover, utilities, property management and transparent reporting.' },
+        {
+          title: 'Market research',
+          desc: 'Online consultation, clarifying budget, preferred locations and investment goal.',
+        },
+        {
+          title: 'Property selection',
+          desc: 'Selecting 3–6 specific offers based on your requirements, with video tours and price comparisons.',
+        },
+        {
+          title: 'Professional marketing',
+          desc: 'Quality photos, video materials and clear developer documents to support your purchase decision.',
+        },
+        {
+          title: 'Complete service',
+          desc: 'Organizing viewings, reservations and contract documentation.',
+        },
+        {
+          title: 'Legal & financial support',
+          desc: 'Working with local legal partners, document checks, escrow and secure payments in CZK and EUR.',
+        },
+        {
+          title: 'After-sales services',
+          desc: 'Handover of the property, help with utility transfers and basic support for management or renting.',
+        },
       ],
     },
     about: {
       title: 'About us',
-      subtitle: 'A boutique team guiding you through Egypt real estate',
+      subtitle: 'We are a real estate agency specialized in selling property in Egypt',
       story:
-        'We blend Czech precision with deep knowledge of the Egyptian market. From the first call to handover, we keep the process structured, transparent, and multilingual (CZ / EN / DE). With vetted legal partners and on-the-ground experience, we help you buy, sell, or rent safely by the Red Sea.\n\nOur goal is straightforward: a clear path, trusted guidance, and a premium client experience whether you seek a lifestyle home or a solid investment.',
+        'We are an Egyptian-Czech real estate project created from personal experience buying property in Egypt and from the need to offer a clear and safe process for clients from Europe.' + '\n\n' +
+
+'We focus on selling, buying and renting property by the sea, mainly in Red Sea destinations. We provide personal support in Czech, English and German and guide clients through the entire process – from the first contact to handover and ongoing care.' + '\n\n' +
+
+'We work with vetted local developers and legal partners. We assess every listing carefully with an emphasis on transparency, reliable information and transaction safety. We are not chasing quick deals but long-term trust and client satisfaction.' + '\n\n' +
+
+'Our goal is to simplify the path to owning property in Egypt, remove unnecessary risks and offer an approach that combines European expectations with local on-the-ground knowledge.',
     },
     reviews: {
-      title: 'Client reviews',
-      subtitle: 'Straightforward feedback from buyers and investors.',
+      title: 'Client references',
+      subtitle: 'Real experiences from clients in Czechia, Germany and Britain.',
       form: {
-        title: 'Leave a review (no sign-in)',
+        title: 'Write a review without signing in',
         name: 'Name',
         location: 'City / country (optional)',
         rating: 'Rating',
         text: 'Your experience',
         submit: 'Submit review',
-        helper: 'We publish after a quick spam check.',
-        success: 'Thanks! Your review is saved and will appear soon.',
+        helper: 'We will publish it after a quick spam check.',
+        success: 'Thanks! We have saved your review and will publish it soon.',
         error: 'Could not save the review. Please try again.',
       },
-      empty: 'No reviews yet. Be the first to share your experience.',
+      empty: 'No reviews yet. Add yours as the first one.',
       items: [],
     },
     contact: {
       title: 'Contact',
-      subtitle: 'Let’s schedule a free online consultation about your plans.',
+      subtitle: 'Get in touch and let us schedule a free online consultation.',
       form: {
         name: 'Full name',
         email: 'Email',
         phone: 'Phone',
         message: 'Your message',
         send: 'Send message',
-        success: 'Thank you for reaching out! We will respond within 24 hours.',
+        success: 'Thank you for your message! We will respond within 24 hours.',
       },
       info: {
-        phone: '+420 777 123 456',
+        phone: '+420 723 063 837',
         email: 'hello@egyptrealestate.cz',
         whatsapp: 'WhatsApp chat',
         address: 'Office: Hurghada Marina & online',
       },
     },
     footer: {
-      tagline: 'Premium real estate in Egypt with concierge-level service.',
-      rights: '© 2024 Egypt Real Estate. All rights reserved.',
+      tagline: 'We help you buy property in Egypt without unnecessary risks.',
+      rights: '© 2025 Egyptsko Česká Reality. All rights reserved.',
     },
     personal: {
-      title: 'Welcome, your trusted partner for Egypt real estate',
-      subtitle: 'I am Martin Novák. I guide you personally from the first call to the key handover with clear steps in English, Czech, or German.',
-      bullets: ['Save your time – online calls, remote tours, clear pricing', 'Secure buying and selling with verified partners', 'Legal, financial, and after-sales support under one roof'],
-      cta: 'Book a consultation',
+      title: 'Welcome, your support in Egyptian real estate',
+      subtitle: 'We are a real estate agency specialized in selling property in Egypt.',
+      bullets: [
+        'We save you time – online consultations and remote tours',
+        'We facilitate a safe purchase of property in Egypt',
+        'Legal, financial and after-sales service under one roof',
+      ],
+      cta: 'Schedule a consultation',
     },
   },
   de: {
     nav: {
       properties: 'Angebote',
       howItWorks: 'Ablauf',
-      about: 'Über mich',
+      about: 'Über uns',
       reviews: 'Referenzen',
       contact: 'Kontakt',
     },
     hero: {
       eyebrow: 'Egypt Real Estate',
-      title: 'Ihr Premium-Partner für Immobilien in Ägypten',
+      title: 'Wir helfen Ihnen, in Ägypten ohne unnötige Risiken zu kaufen',
       subtitle:
-        'Wir betreuen deutsch-, englisch- und tschechischsprachige Kunden beim Kauf, Verkauf oder der Vermietung am Roten Meer. Voller Rechts-, Finanz- und After-Sales-Service.',
+        'Wir unterstützen deutsch-, englisch- und tschechischsprachige Kunden dabei, sicher am Meer zu kaufen, zu verkaufen oder zu vermieten. Komplettservice inklusive rechtlicher Absicherung.',
       cta1: 'Kostenlose Beratung',
       cta2: 'Angebote ansehen',
-      highlights: ['8+ Jahre Markterfahrung vor Ort', 'Individuelle Betreuung in DE / EN / CZ', 'Geprüfte Anwälte und Finanzpartner'],
+      highlights: [
+        'Viel Erfahrung auf dem ägyptischen Markt',
+        'Individueller Ansatz für jeden Kunden',
+        'Fokus auf sicheren und transparenten Kauf',
+      ],
     },
     properties: {
       title: 'Aktuelle Immobilienangebote',
-      subtitle: 'Kuratiertes Portfolio in Hurghada, Sharm, El Gouna und Soma Bay. Ideal für Eigennutzer und Investoren.',
+      subtitle:
+        'Sorgfältig ausgewählte Projekte in Hurghada, Sharm, El Gouna und weiteren Premium-Lagen. Ideal für Eigennutzer und Investoren.',
       sqm: 'm²',
       rooms: 'Zimmer',
       detail: 'Immobiliendetails',
@@ -221,71 +259,94 @@ export const translations = {
     },
     howItWorks: {
       title: 'Wie die Zusammenarbeit abläuft',
-      subtitle: 'Ein klarer, conciergeartiger Prozess von der Bedarfsklärung bis zur Schlüsselübergabe und laufenden Betreuung.',
+      subtitle: 'Transparenter Ablauf vom ersten Gespräch bis zur Schlüsselübergabe und anschließenden Verwaltung.',
       steps: [
-        { title: 'Marktanalyse', desc: 'Kostenlose Beratung zu Budget, Zweck und Lage mit passender Vorauswahl.' },
-        { title: 'Objektauswahl', desc: 'Shortlist aus 3–6 Projekten mit Videotouren, Renditeberechnungen und Vergleichen.' },
-        { title: 'Premium-Marketing', desc: '3D-Grundrisse, hochwertige Fotos und starke Präsentation für Verkauf oder Vermietung.' },
-        { title: 'Rundum-Service', desc: 'Besichtigungen, Reservierung, Verträge, Übersetzungen und Abstimmung mit dem Entwickler.' },
-        { title: 'Recht & Finanzen', desc: 'Due Diligence, geprüfte Anwälte, Treuhand und sichere Zahlungen in EUR oder CZK.' },
-        { title: 'After-Sales', desc: 'Übergabe, Versorgung, Mietverwaltung und regelmäßiges Reporting.' },
+        {
+          title: 'Marktanalyse',
+          desc: 'Online-Beratung, Klärung von Budget, Wunschlagen und Investitionsziel.',
+        },
+        {
+          title: 'Objektauswahl',
+          desc: 'Auswahl von 3–6 konkreten Angeboten nach Ihren Vorgaben, Videotouren und Preisvergleiche.',
+        },
+        {
+          title: 'Professionelles Marketing',
+          desc: 'Hochwertige Fotos, Videomaterial und übersichtliche Unterlagen vom Entwickler für die Kaufentscheidung.',
+        },
+        {
+          title: 'Komplettservice',
+          desc: 'Organisation von Besichtigungen, Reservierungen und Vertragsunterlagen.',
+        },
+        {
+          title: 'Recht & Finanzen',
+          desc: 'Zusammenarbeit mit lokalen Rechtspartnern, Dokumentenprüfung, Treuhand und sichere Zahlungen in CZK und EUR.',
+        },
+        {
+          title: 'After-Sales-Services',
+          desc: 'Übergabe der Immobilie, Unterstützung beim Ummelden der Energieverträge und Basis-Betreuung bei Verwaltung oder Vermietung.',
+        },
       ],
     },
     about: {
       title: 'Über uns',
-      subtitle: 'Boutique-Team für Immobilien in Ägypten',
+      subtitle: 'Wir sind ein Maklerbüro, das auf Immobilien in Ägypten spezialisiert ist',
       story:
-        'Wir verbinden tschechische Präzision mit tiefem Marktverständnis in Ägypten. Vom ersten Gespräch bis zur Schlüsselübergabe halten wir den Prozess klar, transparent und mehrsprachig (DE / EN / CZ). Mit geprüften Rechtspartnern und Erfahrung vor Ort unterstützen wir Sie sicher beim Kauf, Verkauf oder der Vermietung am Roten Meer.\n\nUnser Anspruch: ein klarer Fahrplan, vertrauensvolle Begleitung und ein hochwertiges Kundenerlebnis – ob Sie ein Zuhause oder eine solide Investition suchen.',
+        'Wir sind ein ägyptisch-tschechisches Immobilienprojekt, entstanden aus persönlicher Erfahrung mit dem Immobilienkauf in Ägypten und dem Bedarf, europäischen Kunden einen verständlichen und sicheren Prozess zu bieten.' + '\n\n' +
+
+'Wir konzentrieren uns auf Verkauf, Kauf und Vermietung von Immobilien am Meer, vor allem in den Regionen des Roten Meeres. Wir bieten persönliche Betreuung auf Tschechisch, Englisch und Deutsch und begleiten durch den gesamten Prozess – vom ersten Kontakt bis zur Übergabe der Immobilie und anschließender Betreuung.' + '\n\n' +
+
+'Wir arbeiten mit geprüften lokalen Entwicklern und Rechtspartnern zusammen. Jedes Angebot prüfen wir sorgfältig mit Blick auf Transparenz, verlässliche Informationen und Transaktionssicherheit. Uns geht es nicht um schnelle Deals, sondern um langfristiges Vertrauen und Zufriedenheit unserer Kunden.' + '\n\n' +
+
+'Unser Ziel ist es, den Weg zur Immobilie in Ägypten zu vereinfachen, unnötige Risiken zu entfernen und einen Ansatz zu bieten, der europäische Erwartungen mit lokaler Marktkenntnis verbindet.',
     },
     reviews: {
       title: 'Kundenreferenzen',
-      subtitle: 'Echte Rückmeldungen von Käufern und Investoren.',
+      subtitle: 'Echte Erfahrungen von Kunden aus Tschechien, Deutschland und Großbritannien.',
       form: {
-        title: 'Bewertung abgeben (ohne Login)',
+        title: 'Schreiben Sie eine Bewertung ohne Anmeldung',
         name: 'Name',
         location: 'Stadt / Land (optional)',
         rating: 'Bewertung',
         text: 'Ihre Erfahrung',
         submit: 'Bewertung senden',
-        helper: 'Wir veröffentlichen nach kurzem Spam-Check.',
-        success: 'Danke! Ihre Bewertung wurde gespeichert und erscheint in Kürze.',
-        error: 'Speichern fehlgeschlagen. Bitte erneut versuchen.',
+        helper: 'Wir veröffentlichen nach einer kurzen Spam-Prüfung.',
+        success: 'Danke! Wir haben Ihre Bewertung gespeichert und veröffentlichen sie in Kürze.',
+        error: 'Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.',
       },
-      empty: 'Noch keine Bewertungen. Teilen Sie Ihre als Erste/r.',
+      empty: 'Noch keine Bewertungen. Fügen Sie als Erste/r Ihre hinzu.',
       items: [],
     },
     contact: {
       title: 'Kontakt',
-      subtitle: 'Vereinbaren Sie ein kostenloses Online-Gespräch zu Ihren Plänen.',
+      subtitle: 'Melden Sie sich – vereinbaren wir eine kostenlose Online-Beratung.',
       form: {
         name: 'Vollständiger Name',
         email: 'E-Mail',
         phone: 'Telefon',
         message: 'Ihre Nachricht',
         send: 'Nachricht senden',
-        success: 'Vielen Dank! Wir melden uns innerhalb von 24 Stunden.',
+        success: 'Vielen Dank für Ihre Nachricht! Wir melden uns innerhalb von 24 Stunden.',
       },
       info: {
-        phone: '+420 777 123 456',
+        phone: '+420 723 063 837',
         email: 'hello@egyptrealestate.cz',
         whatsapp: 'WhatsApp-Chat',
         address: 'Büro: Hurghada Marina & online',
       },
     },
     footer: {
-      tagline: 'Premium-Immobilien in Ägypten mit Concierge-Service.',
-      rights: '© 2024 Egypt Real Estate. Alle Rechte vorbehalten.',
+      tagline: 'Wir helfen Ihnen, Immobilien in Ägypten ohne unnötige Risiken zu kaufen.',
+      rights: '© 2025 Egyptsko Česká Reality. Alle Rechte vorbehalten.',
     },
     personal: {
-      title: 'Willkommen, Ihr persönlicher Partner für Immobilien in Ägypten',
-      subtitle:
-        'Ich bin Martin Novák und begleite Sie persönlich vom ersten Gespräch bis zur Schlüsselübergabe – klar strukturiert, auf Deutsch, Englisch oder Tschechisch.',
+      title: 'Willkommen, Ihre Unterstützung in Ägyptens Immobilienwelt',
+      subtitle: 'Wir sind ein Maklerbüro, spezialisiert auf den Verkauf von Immobilien in Ägypten.',
       bullets: [
-        'Zeit sparen – Online-Calls, virtuelle Besichtigungen',
-        'Sicher kaufen oder verkaufen mit geprüften Partnern',
-        'Recht, Finanzen und After-Sales aus einer Hand',
+        'Wir sparen Ihnen Zeit – Online-Beratung und Besichtigungen aus der Ferne',
+        'Wir vermitteln einen sicheren Immobilienkauf in Ägypten',
+        'Rechtlicher, finanzieller und After-Sales-Service unter einem Dach',
       ],
-      cta: 'Beratung buchen',
+      cta: 'Beratung vereinbaren',
     },
   },
 };

@@ -5,7 +5,16 @@ const Hero = ({ t, language, onPrimaryCta, onSecondaryCta }) => (
   <section id="top" className="hero">
     <div className="container hero-grid single">
       <div className="hero-copy" style={{ textAlign: 'center', margin: '0 auto' }}>
-        <h1 className="display">{t.hero.title}</h1>
+        <h1
+          className="display"
+          style={
+            language === 'cz'
+              ? { fontSize: 'clamp(40px, 4.5vw, 64px)', letterSpacing: '-0.2px' }
+              : undefined
+          }
+        >
+          {t.hero.title}
+        </h1>
         <p className="subtitle" style={{ textAlign: 'center' }}>
           {t.hero.subtitle}
         </p>

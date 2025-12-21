@@ -1,9 +1,20 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, CheckCircle2, Loader2, Pencil, RefreshCw, UploadCloud } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  Loader2,
+  LogOut,
+  Pencil,
+  RefreshCw,
+  Shield,
+  UploadCloud,
+  X,
+} from 'lucide-react';
 import { translations } from '../../content/translations';
 
+const ACCESS_KEY = (process.env.NEXT_PUBLIC_ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN || '').trim();
 const languages = ['cz', 'en', 'de'];
 const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
 
@@ -46,7 +57,8 @@ const readJsonSafe = async (res) => {
 
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
-  const [formAuth, setFormAuth] = useState({ user: '', pass: '' });
+  const [accessKey, setAccessKey] = useState('');
+  const [remember, setRemember] = useState(false);
   const [lang, setLang] = useState('cz');
   const [properties, setProperties] = useState(splitProperties());
   const [newProperty, setNewProperty] = useState(blankProperty);
@@ -70,6 +82,14 @@ const AdminPage = () => {
   );
 
   useEffect(() => {
+    const stored = typeof window !== 'undefined' ? sessionStorage.getItem('adminAccessKey') : '';
+    if (stored && ACCESS_KEY && stored === ACCESS_KEY) {
+      setAuthed(true);
+      loadProperties(lang);
+    }
+  }, []);
+
+  useEffect(() => {
     const urls = newFiles.map((file) => URL.createObjectURL(file));
     setNewPreviews(urls);
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
@@ -90,7 +110,6 @@ const AdminPage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, authed, fallbackSplit]);
-
   const uploadFiles = async (files) => {
     if (!files?.length) return [];
     const formData = new FormData();
@@ -124,9 +143,9 @@ const AdminPage = () => {
       language: lang,
       sqm: toNumberOrNull(prop.sqm),
       rooms: toNumberOrNull(prop.rooms),
-        tag: prop.tag || 'Nova',
-        description: prop.description || '',
-      };
+      tag: prop.tag || 'Nova',
+      description: prop.description || '',
+    };
     const res = await fetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,11 +192,27 @@ const AdminPage = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (formAuth.user === 'admin' && formAuth.pass === '1234') {
-      setAuthed(true);
-      loadProperties(lang);
-    } else {
-      setError('Nespravne udaje.');
+    setError('');
+    if (!ACCESS_KEY) {
+      setError('Neni nastaven pristupovy klic (NEXT_PUBLIC_ADMIN_KEY).');
+      return;
+    }
+    if (accessKey.trim() !== ACCESS_KEY) {
+      setError('Nespravny pristupovy klic.');
+      return;
+    }
+    setAuthed(true);
+    if (remember && typeof window !== 'undefined') {
+      sessionStorage.setItem('adminAccessKey', accessKey.trim());
+    }
+    loadProperties(lang);
+  };
+
+  const logout = () => {
+    setAuthed(false);
+    setAccessKey('');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('adminAccessKey');
     }
   };
 
@@ -191,7 +226,7 @@ const AdminPage = () => {
       return;
     }
     if (!newFiles.length) {
-      setError('Pripojte aspon jeden obrazek.');
+      setError('Pripojte alespon jeden obrazek.');
       return;
     }
 
@@ -342,61 +377,93 @@ const AdminPage = () => {
 
   const activeCount = properties.active?.length || 0;
   const soldCount = properties.sold?.length || 0;
-
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#f4f5f8',
-        padding: '28px 16px 36px',
+        background:
+          'radial-gradient(110% 80% at 10% 20%, rgba(31,186,198,0.08), transparent 40%), radial-gradient(110% 80% at 80% 0%, rgba(217,179,106,0.08), transparent 48%), linear-gradient(180deg, #f5f7fb 0%, #e7ecf7 40%, #dfe7f5 100%)',
+        padding: '32px 18px 48px',
+        color: '#0f1c2d',
       }}
     >
-      <div style={{ maxWidth: 1100, margin: '0 auto', color: '#0f1c2d' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+        <header
+          style={{
+            background: 'linear-gradient(135deg, #0f2c4d, #133a67 60%, #1fbac6)',
+            color: '#fff',
+            padding: '18px 20px',
+            borderRadius: 18,
+            boxShadow: '0 18px 40px rgba(10,30,60,0.25)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 14,
+            alignItems: 'center',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}
+        >
           <div>
-            <p style={{ margin: 0, color: '#5b6b7a', letterSpacing: 0.3, fontSize: 13 }}>Admin panel</p>
-            <h1 style={{ margin: '2px 0 6px', fontSize: 28, fontWeight: 800 }}>Sprava nemovitosti</h1>
-            <p style={{ margin: 0, color: '#5b6b7a', maxWidth: 640, lineHeight: 1.45 }}>
-              Nahrajte fotky, vyplnte zakladni informace a jednoduse prepnite nabidku mezi aktivni/prodano.
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Shield size={18} />
+              <p style={{ margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontSize: 12 }}>Admin panel</p>
+            </div>
+            <h1 style={{ margin: '4px 0 2px', fontSize: 26 }}>Sprava nemovitosti</h1>
+            <p style={{ margin: 0, opacity: 0.85 }}>
+              Nahrajte fotky, upravujte texty a prepinajte inzeraty mezi aktivni a prodane.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {authed && (
-              <button onClick={() => loadProperties(lang)} style={{ ...chipBtn, background: '#0f2c4d', color: '#fff' }}>
+          {authed && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button onClick={() => loadProperties(lang)} style={{ ...chipBtn, background: '#102a42', color: '#fff' }}>
                 <RefreshCw size={16} />
                 Obnovit
               </button>
-            )}
-          </div>
-        </div>
+              <button onClick={logout} style={{ ...chipBtn, background: '#fef2f2', color: '#b42318', borderColor: '#fbc7c7' }}>
+                <LogOut size={16} />
+                Odhlasit
+              </button>
+            </div>
+          )}
+        </header>
 
         {!authed ? (
-          <div style={{ ...card, maxWidth: 420 }}>
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Prihlaseni</h3>
+          <div style={{ ...card, maxWidth: 520, marginTop: 16 }}>
+            <h3 style={{ marginTop: 0, marginBottom: 10 }}>Pristup do administrace</h3>
+            <p style={{ marginTop: 0, color: '#5b6b7a', marginBottom: 12 }}>
+              Prihlaseni je chraneno pristupovym klicem. Nastavte promenou <code>NEXT_PUBLIC_ADMIN_KEY</code> ve svem prostredi a pouzijte ji zde.
+            </p>
             <form onSubmit={handleLogin} style={{ display: 'grid', gap: 12 }}>
               <input
-                placeholder="Uzivatel"
-                value={formAuth.user}
-                onChange={(e) => setFormAuth({ ...formAuth, user: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                placeholder="Heslo"
+                placeholder="Pristupovy klic"
+                value={accessKey}
+                onChange={(e) => setAccessKey(e.target.value)}
+                style={{ ...inputStyle, letterSpacing: 0.8 }}
                 type="password"
-                value={formAuth.pass}
-                onChange={(e) => setFormAuth({ ...formAuth, pass: e.target.value })}
-                style={inputStyle}
               />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#5b6b7a' }}>
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  style={{ width: 16, height: 16 }}
+                />
+                Zapamatovat pro toto sezeni
+              </label>
               <button type="submit" style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <CheckCircle2 size={18} />
-                Prihlasit
+                Vstoupit do administrace
               </button>
               {error && <div style={{ color: '#b42318', fontSize: 13 }}>{error}</div>}
+              {!ACCESS_KEY && (
+                <div style={{ color: '#9a6b0c', fontSize: 13, background: '#fff7e6', padding: 10, borderRadius: 10 }}>
+                  Tip: nastavte <strong>NEXT_PUBLIC_ADMIN_KEY</strong> (24+ znaku) v .env.local a aplikaci znovu spustte.
+                </div>
+              )}
             </form>
           </div>
         ) : (
           <>
-            <div style={{ ...card, marginBottom: 16 }}>
+            <div style={{ ...card, marginTop: 16 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {languages.map((l) => (
@@ -430,13 +497,13 @@ const AdminPage = () => {
               {error && <div style={{ color: '#b42318', fontSize: 13, marginTop: 8 }}>{error}</div>}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'start' }}>
               <section style={{ ...card, minWidth: 320 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <UploadCloud size={20} color="#0f2c4d" />
                   <h3 style={{ margin: 0 }}>Nova nemovitost</h3>
                 </div>
-                <form onSubmit={addProperty} style={{ display: 'grid', gap: 10, maxWidth: 520 }}>
+                <form onSubmit={addProperty} style={{ display: 'grid', gap: 10, maxWidth: 540 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <input
                       style={inputStyle}
@@ -486,7 +553,7 @@ const AdminPage = () => {
                   <label style={uploadBox}>
                     <div>
                       <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Nahrajte fotky</div>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>Vyberte minimalne jeden obrazek, slouzi i jako titulka.</div>
+                      <div style={{ color: '#6b7280', fontSize: 13 }}>Vyberte alespon jeden obrazek, slouzi i jako titulka.</div>
                     </div>
                     <input
                       type="file"
@@ -534,8 +601,9 @@ const AdminPage = () => {
                       {(properties.active || []).map((prop) => {
                         const imgs = toImages(prop.images);
                         const cover = imgs[0] || prop.image;
+                        const pid = prop.id || prop.name;
                         return (
-                          <div key={prop.id || prop.name} style={propertyRow}>
+                          <div key={pid} style={propertyRow}>
                             <div style={rowLeft}>
                               {cover ? (
                                 <img src={cover} alt={prop.name} style={rowThumb} />
@@ -553,20 +621,16 @@ const AdminPage = () => {
                                 <Pencil size={16} />
                                 Upravit
                               </button>
-                              <button
-                                style={dangerBtn}
-                                onClick={() => removeProperty(prop)}
-                                disabled={deletingId === (prop.id || prop.name)}
-                              >
-                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
+                              <button style={dangerBtn} onClick={() => removeProperty(prop)} disabled={deletingId === pid}>
+                                {deletingId === pid ? <Loader2 size={16} /> : <X size={16} />}
                                 Smazat
                               </button>
                               <button
                                 style={{ ...pillBtn, background: '#102a42', color: '#fff' }}
                                 onClick={() => toggleSold(prop, true)}
-                                disabled={togglingId === (prop.id || prop.name)}
+                                disabled={togglingId === pid}
                               >
-                                {togglingId === (prop.id || prop.name) ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
+                                {togglingId === pid ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
                                 Prodano
                               </button>
                             </div>
@@ -588,8 +652,9 @@ const AdminPage = () => {
                       {(properties.sold || []).map((prop) => {
                         const imgs = toImages(prop.images);
                         const cover = imgs[0] || prop.image;
+                        const pid = prop.id || prop.name;
                         return (
-                          <div key={prop.id || prop.name} style={{ ...propertyRow, background: '#f5f7fb' }}>
+                          <div key={pid} style={{ ...propertyRow, background: '#f5f7fb' }}>
                             <div style={rowLeft}>
                               {cover ? (
                                 <img src={cover} alt={prop.name} style={rowThumb} />
@@ -607,20 +672,16 @@ const AdminPage = () => {
                                 <Pencil size={16} />
                                 Upravit
                               </button>
-                              <button
-                                style={dangerBtn}
-                                onClick={() => removeProperty(prop)}
-                                disabled={deletingId === (prop.id || prop.name)}
-                              >
-                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
+                              <button style={dangerBtn} onClick={() => removeProperty(prop)} disabled={deletingId === pid}>
+                                {deletingId === pid ? <Loader2 size={16} /> : <X size={16} />}
                                 Smazat
                               </button>
                               <button
                                 style={{ ...pillBtn, background: '#fff', color: '#0f2c4d', borderColor: '#d28b37' }}
                                 onClick={() => toggleSold(prop, false)}
-                                disabled={togglingId === (prop.id || prop.name)}
+                                disabled={togglingId === pid}
                               >
-                                {togglingId === (prop.id || prop.name) ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
+                                {togglingId === pid ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
                                 Zpet do aktivnich
                               </button>
                             </div>
@@ -715,7 +776,7 @@ const AdminPage = () => {
                     <label style={uploadBox}>
                       <div>
                         <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Pridat dalsi fotky</div>
-                        <div style={{ color: '#6b7280', fontSize: 13 }}>Nove fotky se pridaji ke stavajicim.</div>
+                        <div style={{ color: '#6b7280', fontSize: 13 }}>Nove fotky se prida ke stavajicim.</div>
                       </div>
                       <input
                         type="file"
