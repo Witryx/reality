@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function POST(request) {
 
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -40,7 +40,7 @@ export async function POST(request) {
     );
   }
 
-  const to = process.env.CONTACT_TO || 'petahecik@gmail.com';
+  const to = process.env.CONTACT_TO || process.env.SMTP_USER;
   const subject = `Contact form: ${payload.name || 'New inquiry'}`;
   const text = `
 Name: ${payload.name}
@@ -55,7 +55,10 @@ ${payload.message}
 
   if (!transporter) {
     return NextResponse.json(
-      { error: 'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.' },
+      {
+        error:
+          'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.',
+      },
       { status: 503 }
     );
   }

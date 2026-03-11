@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, CheckCircle2, Loader2, Pencil, RefreshCw, UploadCloud } from 'lucide-react';
-import { translations } from '../../content/translations';
+import { ArrowLeftRight, CheckCircle2, Loader2, LogOut, Pencil, RefreshCw, UploadCloud } from 'lucide-react';
 
+const ADMIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_ADMIN === '1';
 const languages = ['cz', 'en', 'de'];
 const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
 
@@ -31,6 +31,32 @@ const toImages = (value) => {
   return [];
 };
 
+const toVideos = (value) => {
+  const isVideoUrl = (src = '') => /\.(mp4|webm|ogg|mov)$/i.test(String(src));
+  if (Array.isArray(value)) return value.filter((video) => video && isVideoUrl(video));
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter((video) => video && isVideoUrl(video));
+    } catch {
+      /* ignore */
+    }
+    return isVideoUrl(value) ? [value] : [];
+  }
+  return [];
+};
+
+const splitUploadedMedia = (files = [], urls = []) => {
+  const images = [];
+  const videos = [];
+  urls.forEach((url, idx) => {
+    const file = files[idx];
+    if (file?.type?.startsWith('video/')) videos.push(url);
+    else images.push(url);
+  });
+  return { images, videos };
+};
+
 const toNumberOrNull = (value) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
@@ -46,6 +72,8 @@ const readJsonSafe = async (res) => {
 
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
   const [formAuth, setFormAuth] = useState({ user: '', pass: '' });
   const [lang, setLang] = useState('cz');
   const [properties, setProperties] = useState(splitProperties());
@@ -62,12 +90,26 @@ const AdminPage = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const fallbackSplit = useMemo(() => splitProperties(), []);
 
-  const fallback = useMemo(() => translations[lang]?.properties || {}, [lang]);
-  const fallbackSplit = useMemo(
-    () => splitProperties([...(fallback.items || []), ...(fallback.soldItems || [])]),
-    [fallback]
-  );
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/admin/session', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const data = await res.json().catch(() => ({}));
+        setAuthed(Boolean(data?.authenticated));
+      } catch {
+        setAuthed(false);
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    checkSession();
+  }, []);
 
   useEffect(() => {
     const urls = newFiles.map((file) => URL.createObjectURL(file));
@@ -82,7 +124,7 @@ const AdminPage = () => {
   }, [editFiles]);
 
   useEffect(() => {
-    setProperties(fallbackSplit);
+    setProperties(splitProperties());
     setStatus('');
     setError('');
     if (authed) {
@@ -95,24 +137,67 @@ const AdminPage = () => {
     if (!files?.length) return [];
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
-    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Upload selhal.');
+    if (res.status === 401) {
+      setAuthed(false);
+      throw new Error('Relace vyprsela. Prihlaste se znovu.');
+    }
+    if (!res.ok) throw new Error(data?.detail || data?.error || 'Upload selhal.');
     return Array.isArray(data.urls) ? data.urls : [];
+  };
+
+  const loadStaticProperties = async (currentLang) => {
+    try {
+      const staticRes = await fetch('/data/properties.json');
+      if (!staticRes.ok) return [];
+      const staticData = await staticRes.json().catch(() => ({}));
+      const staticList = Array.isArray(staticData)
+        ? staticData
+        : Array.isArray(staticData?.properties)
+          ? staticData.properties
+          : [];
+      return staticList.filter((item) => !item?.language || item.language === currentLang);
+    } catch {
+      return [];
+    }
   };
 
   const loadProperties = async (currentLang) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/properties?lang=${currentLang}`);
+      const res = await fetch(`/api/properties?lang=${currentLang}`, {
+        credentials: 'include',
+      });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Nepodarilo se nacist data.');
-      const list = Array.isArray(data.properties) ? data.properties : [];
-      setProperties(list.length ? splitProperties(list) : fallbackSplit);
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Nepodarilo se nacist data.');
+      const apiList = Array.isArray(data.properties) ? data.properties : [];
+      const staticList = await loadStaticProperties(currentLang);
+      const unique = new Map();
+      [...apiList, ...staticList].forEach((item) => {
+        if (!item) return;
+        const key = `${String(item.name || '').trim()}|${String(item.location || '').trim()}`;
+        if (!unique.has(key)) unique.set(key, item);
+      });
+      const combined = Array.from(unique.values());
+      setProperties(combined.length ? splitProperties(combined) : fallbackSplit);
     } catch (err) {
+      const staticList = await loadStaticProperties(currentLang);
+      if (staticList.length) {
+        setProperties(splitProperties(staticList));
+      } else {
+        setProperties(fallbackSplit);
+      }
       setError(err.message || 'Nepodarilo se nacist data.');
-      setProperties(fallbackSplit);
     } finally {
       setLoading(false);
     }
@@ -124,33 +209,47 @@ const AdminPage = () => {
       language: lang,
       sqm: toNumberOrNull(prop.sqm),
       rooms: toNumberOrNull(prop.rooms),
-        tag: prop.tag || 'Nova',
-        description: prop.description || '',
-      };
+      tag: prop.tag || 'Nova',
+      description: prop.description || prop.longDescription || '',
+      images: Array.isArray(prop.images) ? prop.images : toImages(prop.images),
+      videos: Array.isArray(prop.videos) ? prop.videos : toVideos(prop.videos),
+      image: prop.image || toImages(prop.images)[0] || null,
+    };
     const res = await fetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await readJsonSafe(res);
-    if (!res.ok) throw new Error(data?.error || 'Ulozeni selhalo.');
+    if (res.status === 401) {
+      setAuthed(false);
+      throw new Error('Relace vyprsela. Prihlaste se znovu.');
+    }
+    if (!res.ok) throw new Error(data?.detail || data?.error || 'Ulozeni selhalo.');
     if (!data?.property) throw new Error('Neplatna odpoved serveru.');
     let created = data.property;
     if (sold) {
       const toggleRes = await fetch('/api/properties', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ id: created.id, sold: true }),
       });
       const toggleData = await toggleRes.json().catch(() => ({}));
-      if (!toggleRes.ok) throw new Error(toggleData?.error || 'Oznaceni prodano selhalo.');
+      if (toggleRes.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!toggleRes.ok) throw new Error(toggleData?.detail || toggleData?.error || 'Oznaceni prodano selhalo.');
       created = toggleData.property;
     }
     return created;
   };
 
   const ensurePersistedProperty = async (prop) => {
-    if (prop?.id) return prop;
+    if (prop?.id && prop?.created_at) return prop;
+    if (prop?.id && prop?.persisted) return prop;
     return createFromFallback(prop, Boolean(prop?.sold));
   };
 
@@ -173,11 +272,43 @@ const AdminPage = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (formAuth.user === 'admin' && formAuth.pass === '1234') {
-      setAuthed(true);
-      loadProperties(lang);
-    } else {
-      setError('Nespravne udaje.');
+    const login = async () => {
+      setError('');
+      setStatus('');
+      setAuthBusy(true);
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ user: formAuth.user, pass: formAuth.pass }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Nespravne udaje.');
+        setAuthed(true);
+        setFormAuth({ user: '', pass: '' });
+        await loadProperties(lang);
+      } catch (err) {
+        setAuthed(false);
+        setError(err.message || 'Nespravne udaje.');
+      } finally {
+        setAuthBusy(false);
+      }
+    };
+
+    login();
+  };
+
+  const handleLogout = async () => {
+    setAuthBusy(true);
+    try {
+      await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+    } finally {
+      setAuthed(false);
+      setStatus('');
+      setError('');
+      setProperties(splitProperties());
+      setAuthBusy(false);
     }
   };
 
@@ -191,13 +322,14 @@ const AdminPage = () => {
       return;
     }
     if (!newFiles.length) {
-      setError('Pripojte aspon jeden obrazek.');
+      setError('Pripojte aspon jedno medium (obrazek nebo video).');
       return;
     }
 
     setSavingNew(true);
     try {
       const uploaded = await uploadFiles(newFiles);
+      const { images: uploadedImages, videos: uploadedVideos } = splitUploadedMedia(newFiles, uploaded);
       const payload = {
         ...newProperty,
         language: lang,
@@ -205,16 +337,22 @@ const AdminPage = () => {
         rooms: toNumberOrNull(newProperty.rooms),
         tag: newProperty.tag || 'Nova',
         description: newProperty.description || '',
-        images: uploaded,
-        image: uploaded[0],
+        images: uploadedImages,
+        videos: uploadedVideos,
+        image: uploadedImages[0] || null,
       };
       const res = await fetch('/api/properties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = await readJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error || 'Ulozeni selhalo.');
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Ulozeni selhalo.');
       if (!data?.property) throw new Error('Neplatna odpoved serveru.');
 
       applyUpdate(data.property);
@@ -237,10 +375,15 @@ const AdminPage = () => {
       const res = await fetch('/api/properties', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ id: ensured.id, sold: soldState }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Aktualizace selhala.');
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Aktualizace selhala.');
       applyUpdate(data.property);
       setStatus(soldState ? 'Oznaceno jako prodano.' : 'Vraceno mezi aktivni.');
     } catch (err) {
@@ -259,10 +402,15 @@ const AdminPage = () => {
       const res = await fetch('/api/properties', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ id: ensured.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Smazani selhalo.');
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Smazani selhalo.');
       setProperties((prev) => ({
         active: (prev.active || []).filter((item) => item.id !== ensured.id),
         sold: (prev.sold || []).filter((item) => item.id !== ensured.id),
@@ -281,10 +429,12 @@ const AdminPage = () => {
     try {
       const ensured = await ensurePersistedProperty(prop);
       const images = toImages(ensured.images);
+      const videos = toVideos(ensured.videos);
       const cover = images.length ? images : ensured.image ? [ensured.image] : [];
       setEditing({
         ...ensured,
         images: cover,
+        videos,
         description: ensured.description || '',
       });
       setEditFiles([]);
@@ -300,6 +450,13 @@ const AdminPage = () => {
     });
   };
 
+  const removeExistingVideo = (target) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      return { ...prev, videos: (prev.videos || []).filter((vid, idx) => idx !== target) };
+    });
+  };
+
   const saveEdit = async (e) => {
     e.preventDefault();
     if (!editing?.id) return;
@@ -309,8 +466,11 @@ const AdminPage = () => {
 
     try {
       const uploaded = await uploadFiles(editFiles);
+      const { images: uploadedImages, videos: uploadedVideos } = splitUploadedMedia(editFiles, uploaded);
       const baseImages = Array.isArray(editing.images) ? editing.images.filter(Boolean) : [];
-      const mergedImages = uploaded.length ? [...baseImages, ...uploaded] : baseImages;
+      const baseVideos = Array.isArray(editing.videos) ? editing.videos.filter(Boolean) : [];
+      const mergedImages = uploadedImages.length ? [...baseImages, ...uploadedImages] : baseImages;
+      const mergedVideos = uploadedVideos.length ? [...baseVideos, ...uploadedVideos] : baseVideos;
 
       const payload = {
         ...editing,
@@ -318,16 +478,22 @@ const AdminPage = () => {
         language: lang,
         description: editing.description || '',
         images: mergedImages,
+        videos: mergedVideos,
         image: mergedImages.length ? mergedImages[0] : null,
       };
 
       const res = await fetch('/api/properties', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Ulozeni selhalo.');
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Ulozeni selhalo.');
 
       applyUpdate(data.property);
       setEditing(null);
@@ -342,6 +508,25 @@ const AdminPage = () => {
 
   const activeCount = properties.active?.length || 0;
   const soldCount = properties.sold?.length || 0;
+
+  if (!ADMIN_ENABLED) {
+    return (
+      <div style={{ padding: 40, maxWidth: 720, margin: '0 auto' }}>
+        <h1>Admin je momentalne vypnuty</h1>
+        <p>Tento build nema povolene admin rozhrani. Pro produkcni provoz na Vercel zapnete serverove API a databazi.</p>
+        <p>Nastavte promennou NEXT_PUBLIC_ENABLE_ADMIN=1 a znovu nasadte aplikaci.</p>
+      </div>
+    );
+  }
+
+  if (sessionLoading) {
+    return (
+      <div style={{ padding: 40, maxWidth: 720, margin: '0 auto' }}>
+        <h1>Admin panel</h1>
+        <p>Overuji prihlaseni...</p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -362,10 +547,16 @@ const AdminPage = () => {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {authed && (
-              <button onClick={() => loadProperties(lang)} style={{ ...chipBtn, background: '#0f2c4d', color: '#fff' }}>
-                <RefreshCw size={16} />
-                Obnovit
-              </button>
+              <>
+                <button onClick={() => loadProperties(lang)} style={{ ...chipBtn, background: '#0f2c4d', color: '#fff' }}>
+                  <RefreshCw size={16} />
+                  Obnovit
+                </button>
+                <button onClick={handleLogout} style={{ ...chipBtn, background: '#fff', color: '#0f2c4d' }} disabled={authBusy}>
+                  <LogOut size={16} />
+                  {authBusy ? 'Odhlasuji...' : 'Odhlasit'}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -379,6 +570,7 @@ const AdminPage = () => {
                 value={formAuth.user}
                 onChange={(e) => setFormAuth({ ...formAuth, user: e.target.value })}
                 style={inputStyle}
+                disabled={authBusy}
               />
               <input
                 placeholder="Heslo"
@@ -386,10 +578,11 @@ const AdminPage = () => {
                 value={formAuth.pass}
                 onChange={(e) => setFormAuth({ ...formAuth, pass: e.target.value })}
                 style={inputStyle}
+                disabled={authBusy}
               />
-              <button type="submit" style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <CheckCircle2 size={18} />
-                Prihlasit
+              <button type="submit" style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 8 }} disabled={authBusy}>
+                {authBusy ? <Loader2 size={18} /> : <CheckCircle2 size={18} />}
+                {authBusy ? 'Prihlasuji...' : 'Prihlasit'}
               </button>
               {error && <div style={{ color: '#b42318', fontSize: 13 }}>{error}</div>}
             </form>
@@ -485,12 +678,12 @@ const AdminPage = () => {
                   />
                   <label style={uploadBox}>
                     <div>
-                      <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Nahrajte fotky</div>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>Vyberte minimalne jeden obrazek, slouzi i jako titulka.</div>
+                      <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Nahrajte media</div>
+                      <div style={{ color: '#6b7280', fontSize: 13 }}>Vyberte obrazky nebo videa (minimalne jedno medium).</div>
                     </div>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       multiple
                       style={{ display: 'none' }}
                       onChange={(e) => {
@@ -503,11 +696,21 @@ const AdminPage = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
                       {newPreviews.map((src, idx) => (
                         <div key={src} style={thumb}>
-                          <img
-                            src={src}
-                            alt={`Nahrany obrazek ${idx + 1}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                          />
+                          {newFiles[idx]?.type?.startsWith('video/') ? (
+                            <video
+                              src={src}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                              controls
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            <img
+                              src={src}
+                              alt={`Nahrany obrazek ${idx + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -712,14 +915,35 @@ const AdminPage = () => {
                       </div>
                     </div>
 
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      <div style={{ fontWeight: 700 }}>Aktualni videa</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                        {(editing.videos || []).map((src, idx) => (
+                          <div key={src + idx} style={{ position: 'relative' }}>
+                            <video
+                              src={src}
+                              style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 10, border: '1px solid #e5e7eb' }}
+                              controls
+                              muted
+                              playsInline
+                            />
+                            <button type="button" onClick={() => removeExistingVideo(idx)} style={removeBtn}>
+                              x
+                            </button>
+                          </div>
+                        ))}
+                        {!(editing.videos || []).length && <div style={{ color: '#6b7280', fontSize: 13 }}>Zatim zadna ulozena videa.</div>}
+                      </div>
+                    </div>
+
                     <label style={uploadBox}>
                       <div>
-                        <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Pridat dalsi fotky</div>
-                        <div style={{ color: '#6b7280', fontSize: 13 }}>Nove fotky se pridaji ke stavajicim.</div>
+                        <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Pridat dalsi media</div>
+                        <div style={{ color: '#6b7280', fontSize: 13 }}>Nove obrazky i videa se pridaji ke stavajicim.</div>
                       </div>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         multiple
                         style={{ display: 'none' }}
                         onChange={(e) => {
@@ -732,11 +956,21 @@ const AdminPage = () => {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
                         {editPreviews.map((src, idx) => (
                           <div key={src} style={thumb}>
-                            <img
-                              src={src}
-                              alt={`Nova fotka ${idx + 1}`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                            />
+                            {editFiles[idx]?.type?.startsWith('video/') ? (
+                              <video
+                                src={src}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                                controls
+                                muted
+                                playsInline
+                              />
+                            ) : (
+                              <img
+                                src={src}
+                                alt={`Nova fotka ${idx + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                              />
+                            )}
                           </div>
                         ))}
                       </div>

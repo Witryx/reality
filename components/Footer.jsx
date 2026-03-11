@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Mail, Phone } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
 const Footer = ({ t, onNavigate }) => (
   <footer className="footer">
@@ -7,8 +7,8 @@ const Footer = ({ t, onNavigate }) => (
       <div className="footer-grid">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div className="brand-mark" style={{ boxShadow: 'none' }}>
-              <Home size={20} color="#d9b45a" />
+            <div className="brand-logo">
+              <img src="/MAINLOGO.png" alt="Egyptsko Ceska Reality logo" />
             </div>
             <div>
               <div className="brand-name" style={{ color: '#f6efdd' }}>Egyptsko Česká Reality</div>

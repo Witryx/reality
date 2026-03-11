@@ -12,6 +12,18 @@ import WhatsAppButton from './components/WhatsAppButton';
 import { translations } from './content/translations';
 import { globalStyles } from './styles/globalStyles';
 
+const contactMailSuccess = {
+  cz: 'Otevreme vas email s predvyplnenou zpravou, staci odeslat.',
+  en: 'We open your mail app with the message ready to send.',
+  de: 'Wir oeffnen Ihr Mail-Programm mit der fertigen Nachricht.',
+};
+
+const contactMailError = {
+  cz: 'Nepodarilo se otevrit e-mail klienta. Napiste prosim na Info@egyptskoceskareality.cz.',
+  en: 'Could not open the mail app. Please write to Info@egyptskoceskareality.cz.',
+  de: 'Mail-App konnte nicht geoeffnet werden. Bitte schreiben Sie an Info@egyptskoceskareality.cz.',
+};
+
 const EgyptRealEstate = () => {
   const [language, setLanguage] = useState('cz');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -54,23 +66,36 @@ const EgyptRealEstate = () => {
     setMobileOpen(false);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setFormStatus({ sending: true, error: '', success: '' });
     try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || t.contact.form.error || 'Failed to send.');
-      }
+      const to = t?.contact?.info?.email || 'Info@egyptskoceskareality.cz';
+      const subject = 'Web enquiry';
+      const body = [
+        `Name: ${formData.name}`,
+        `Email: ${formData.email}`,
+        `Phone: ${formData.phone}`,
+        '',
+        formData.message,
+      ].join('\n');
+
+      const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+
       setFormData({ name: '', email: '', phone: '', message: '' });
-      setFormStatus({ sending: false, error: '', success: t.contact.form.success });
+      setFormStatus({
+        sending: false,
+        error: '',
+        success: contactMailSuccess[language] || contactMailSuccess.en,
+      });
     } catch (error) {
-      setFormStatus({ sending: false, error: error.message || t.contact.form.error, success: '' });
+      console.error('contact submit mailto failed', error);
+      setFormStatus({
+        sending: false,
+        error: contactMailError[language] || contactMailError.en,
+        success: '',
+      });
     }
   };
 
@@ -99,6 +124,11 @@ const EgyptRealEstate = () => {
           onSecondaryCta={() => scrollToSection('properties')}
         />
         <Properties t={t} language={language} />
+        <section className="logo-break">
+          <div className="container">
+            <img src="/MAINLOGO.png" alt="Egyptsko Česká Reality" className="logo-break-img" />
+          </div>
+        </section>
         <Process t={t} />
         <About t={t} language={language} />
         <Contact

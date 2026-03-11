@@ -1,0 +1,25 @@
+{
+  "reviews": [
+    {
+      "name": "Eva H.",
+      "location": "Prague, CZ",
+      "rating": 5,
+      "text": "Clear guidance from the first call to handover. Contracts were translated and we felt safe throughout.",
+      "language": "cz"
+    },
+    {
+      "name": "Daniel S.",
+      "location": "Berlin, DE",
+      "rating": 5,
+      "text": "Smooth purchase of an investment apartment. The local team arranged viewings, banking support and handled developer paperwork.",
+      "language": "de"
+    },
+    {
+      "name": "Sarah M.",
+      "location": "London, UK",
+      "rating": 4.5,
+      "text": "We did video tours, picked a unit by the lagoon and closed remotely. The after-sales service is very attentive.",
+      "language": "en"
+    }
+  ]
+}

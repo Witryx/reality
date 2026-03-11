@@ -1,5 +1,11 @@
 ﻿import { NextResponse } from 'next/server';
-import { createProperty, deleteProperty, fetchProperties, updateProperty } from '../../../lib/properties';
+import {
+  createProperty,
+  deleteProperty,
+  fetchProperties,
+  updateProperty,
+} from '../../../lib/properties';
+import { requireAdminSession } from '../../../lib/adminAuth';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +30,7 @@ const validatePayload = (payload = {}) => {
       normalized[field] = null;
       return;
     }
+
     const asNumber = Number(value);
     if (Number.isNaN(asNumber)) {
       errors.push(field);
@@ -42,6 +49,7 @@ const validatePayload = (payload = {}) => {
       ? payload.description.trim().slice(0, 2000)
       : null;
   normalized.images = Array.isArray(payload?.images) ? payload.images.filter(Boolean) : payload?.images || null;
+  normalized.videos = Array.isArray(payload?.videos) ? payload.videos.filter(Boolean) : payload?.videos || null;
   normalized.image = payload?.image || null;
   normalized.sold = Boolean(payload?.sold);
 
@@ -66,11 +74,15 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  if (!requireAdminSession(request)) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
   let payload;
 
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -87,6 +99,7 @@ export async function POST(request) {
     if (!property) {
       return NextResponse.json({ error: 'Failed to save property.' }, { status: 500 });
     }
+
     return NextResponse.json({ property }, { status: 201 });
   } catch (error) {
     console.error('POST /api/properties', error);
@@ -96,6 +109,7 @@ export async function POST(request) {
         { status: 503 }
       );
     }
+
     return NextResponse.json(
       { error: 'Failed to save property.', detail: error.message },
       { status: 500 }
@@ -104,11 +118,15 @@ export async function POST(request) {
 }
 
 export async function PATCH(request) {
+  if (!requireAdminSession(request)) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
   let payload;
 
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -123,6 +141,7 @@ export async function PATCH(request) {
     if (!property) {
       return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
     }
+
     return NextResponse.json({ property });
   } catch (error) {
     console.error('PATCH /api/properties', error);
@@ -135,6 +154,7 @@ export async function PATCH(request) {
         { status: 503 }
       );
     }
+
     return NextResponse.json(
       { error: 'Failed to update property.', detail: error.message },
       { status: 500 }
@@ -143,10 +163,15 @@ export async function PATCH(request) {
 }
 
 export async function DELETE(request) {
+  if (!requireAdminSession(request)) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
   let payload;
+
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -160,6 +185,7 @@ export async function DELETE(request) {
     if (!removed) {
       return NextResponse.json({ error: 'Property not found.' }, { status: 404 });
     }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /api/properties', error);
@@ -172,6 +198,7 @@ export async function DELETE(request) {
     if (error.message === 'Invalid property id.') {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
     return NextResponse.json(
       { error: 'Failed to delete property.', detail: error.message },
       { status: 500 }

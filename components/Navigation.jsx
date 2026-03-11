@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Menu, Phone, X } from 'lucide-react';
+import { Menu, Phone, X } from 'lucide-react';
 
 const navOrder = ['properties', 'howItWorks', 'about', 'contact'];
 
@@ -14,8 +14,8 @@ const Navigation = ({
   <header className="nav-shell">
     <div className="nav">
       <div className="nav-left">
-        <div className="brand-mark">
-          <Home size={22} color="#d9b45a" />
+        <div className="brand-logo">
+          <img src="/MAINLOGO.png" alt="Egyptsko Ceska Reality logo" />
         </div>
         <div>
           <div className="brand-name">Egyptsko Česká Reality</div>

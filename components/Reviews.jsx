@@ -22,8 +22,32 @@ const countLabel = {
   de: 'Bewertungen',
 };
 
+const submitHint = {
+  cz: 'Recenze se uklada ihned a po kontrole se zobrazi na webu.',
+  en: 'The review is saved instantly and appears on the website after a quick check.',
+  de: 'Die Bewertung wird sofort gespeichert und nach kurzer Pruefung auf der Website angezeigt.',
+};
+
+const reviewSubmitSuccess = {
+  cz: 'Diky! Recenze byla odeslana.',
+  en: 'Thanks! Your review was submitted.',
+  de: 'Danke! Ihre Bewertung wurde gesendet.',
+};
+
+const reviewSubmitError = {
+  cz: 'Recenzi se nepodarilo ulozit. Zkuste to prosim znovu.',
+  en: 'Could not save the review. Please try again.',
+  de: 'Die Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.',
+};
+
 const MAX_SHOWN = 4;
 const TRUNCATE_AT = 220;
+
+const calcAverage = (list = []) => {
+  if (!list.length) return 0;
+  const sum = list.reduce((acc, item) => acc + Number(item.rating || 0), 0);
+  return Math.round((sum / list.length) * 10) / 10;
+};
 
 const Reviews = ({ t, language }) => {
   const [reviews, setReviews] = useState([]);
@@ -53,24 +77,51 @@ const Reviews = ({ t, language }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/reviews?lang=all&page=1&pageSize=${MAX_SHOWN}`, {
-          signal: controller.signal,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error || 'load_failed');
-        const incoming = Array.isArray(data.reviews) ? data.reviews : [];
+        const apiRes = await fetch(
+          `/api/reviews?lang=all&page=1&pageSize=${MAX_SHOWN}`,
+          { signal: controller.signal }
+        );
+        if (!apiRes.ok) throw new Error('api_load_failed');
 
-        setReviews(incoming.slice(0, MAX_SHOWN));
-        setTotal(Number(data.total || incoming.length || 0));
-        setAverage(Number(data.average || 0));
+        const apiData = await apiRes.json().catch(() => ({}));
+        const apiItems = Array.isArray(apiData?.reviews) ? apiData.reviews : [];
+
+        const staticRes = await fetch(`/data/reviews.json`, { signal: controller.signal });
+        if (!staticRes.ok && !apiItems.length) throw new Error('load_failed');
+        const staticData = staticRes.ok ? await staticRes.json().catch(() => ({})) : {};
+        const staticIncoming = Array.isArray(staticData)
+          ? staticData
+          : Array.isArray(staticData.reviews)
+            ? staticData.reviews
+            : [];
+        const fallback = Array.isArray(t?.reviews?.items) ? t.reviews.items : [];
+        const baseStatic = staticIncoming.length ? staticIncoming : fallback;
+
+        const unique = new Map();
+        [...apiItems, ...baseStatic].forEach((item) => {
+          if (!item) return;
+          const key = `${String(item.name || '').trim()}|${String(item.text || '').trim()}`;
+          if (!unique.has(key)) unique.set(key, item);
+        });
+        const list = Array.from(unique.values());
+
+        setReviews(list.slice(0, MAX_SHOWN));
+        const totalCount = Number(apiData.total || 0);
+        setTotal(totalCount > 0 ? Math.max(totalCount, list.length) : Number(staticData.total || list.length || 0));
+        const avgValue = Number(apiData.average || staticData.average || calcAverage(list) || 0);
+        setAverage(Number.isFinite(avgValue) ? avgValue : 0);
       } catch (error) {
         if (error.name !== 'AbortError') {
           const fallbackMessage = t.reviews.form?.error || 'Nepodarilo se nacist recenze.';
-          const message = error.message && error.message !== 'load_failed' ? error.message : fallbackMessage;
+          const message =
+            error.message && !['load_failed', 'api_load_failed'].includes(error.message)
+              ? error.message
+              : fallbackMessage;
+          const fallback = Array.isArray(t?.reviews?.items) ? t.reviews.items : [];
+          setReviews(fallback.slice(0, MAX_SHOWN));
+          setTotal(fallback.length);
+          setAverage(calcAverage(fallback));
           setLoadError(message);
-          setReviews([]);
-          setTotal(0);
-          setAverage(0);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -96,30 +147,38 @@ const Reviews = ({ t, language }) => {
     setFormSuccess('');
 
     try {
+      const ratingValue = Number(form.rating);
+      const payload = {
+        name: form.name?.trim(),
+        location: form.location?.trim(),
+        rating: ratingValue,
+        text: form.text?.trim(),
+        language: 'all',
+      };
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, rating: Number(form.rating), language }),
+        body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
-
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.error || 'Request failed');
+        throw new Error(data?.error || reviewSubmitError[language] || reviewSubmitError.en);
       }
 
-      setFormSuccess(t.reviews.form?.success || 'Review saved.');
-      const ratingValue = Number(form.rating);
-      const newReview = data?.review || { ...form, rating: ratingValue };
-      setReviews((prev) => [newReview, ...prev].slice(0, MAX_SHOWN));
+      const created = data?.review || { ...payload, id: `local-${Date.now()}` };
+      setReviews((prev) => [created, ...prev].slice(0, MAX_SHOWN));
       setTotal((prev) => prev + 1);
       setAverage((prevAvg) => {
-        const prevTotal = total || 0;
-        return Math.round((((prevAvg || 0) * prevTotal + ratingValue) / (prevTotal + 1)) * 10) / 10;
+        const prevTotal = total || reviews.length || 0;
+        const nextTotal = prevTotal + 1;
+        const baseAvg = prevAvg || calcAverage(reviews);
+        const nextAvg = ((baseAvg || 0) * prevTotal + ratingValue) / nextTotal;
+        return Math.round(nextAvg * 10) / 10;
       });
+      setFormSuccess(reviewSubmitSuccess[language] || reviewSubmitSuccess.en);
       setForm({ ...initialFormState });
     } catch (error) {
-      setFormError(error.message || t.reviews.form?.error);
+      setFormError(error?.message || reviewSubmitError[language] || reviewSubmitError.en);
     } finally {
       setSubmitting(false);
     }
@@ -213,7 +272,11 @@ const Reviews = ({ t, language }) => {
               />
             </div>
 
-            <div className="review-status helper">{t.reviews.form.helper}</div>
+            <div className="review-status helper">
+              {t.reviews.form.helper}
+              <br />
+              {submitHint[language] || submitHint.en}
+            </div>
             {formError && <div className="review-status error">{formError}</div>}
             {formSuccess && <div className="review-status success">{formSuccess}</div>}
 
