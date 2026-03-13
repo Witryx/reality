@@ -2,13 +2,34 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { upload } from '@vercel/blob/client';
-import { ArrowLeftRight, CheckCircle2, Loader2, LogOut, Pencil, RefreshCw, UploadCloud } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Building2,
+  CheckCircle2,
+  CircleAlert,
+  Film,
+  Globe2,
+  Images,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Pencil,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X,
+} from 'lucide-react';
+import styles from './admin.module.css';
+import { globalStyles } from '../../styles/globalStyles';
 
 const ADMIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_ADMIN === '1';
 const languages = ['cz', 'en', 'de'];
 const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
 const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // Vercel request payload limit is lower than typical video sizes.
 const MULTIPART_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
+const PROPERTY_PAGE_SIZE = 6;
 
 const sanitizeFileName = (name = 'upload') =>
   String(name)
@@ -84,6 +105,8 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
+const toInputValue = (value) => (value == null ? '' : String(value));
+
 const readJsonSafe = async (res) => {
   try {
     return await res.json();
@@ -120,6 +143,28 @@ const resolveCoverImage = ({ coverSelection, existingImages = [], pendingFiles =
   return existingImages[0] || uploadedImages[0] || null;
 };
 
+const cx = (...classes) => classes.filter(Boolean).join(' ');
+
+const normalizeEditableProperty = (prop = {}) => {
+  const images = withCoverFirst(toImages(prop.images), prop.image);
+  const videos = toVideos(prop.videos);
+  const coverImage = prop.image && images.includes(prop.image) ? prop.image : images[0] || null;
+
+  return {
+    ...prop,
+    name: toInputValue(prop.name),
+    location: toInputValue(prop.location),
+    price: toInputValue(prop.price),
+    sqm: toInputValue(prop.sqm),
+    rooms: toInputValue(prop.rooms),
+    tag: toInputValue(prop.tag),
+    description: toInputValue(prop.description || prop.longDescription),
+    images,
+    videos,
+    image: coverImage,
+  };
+};
+
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -141,6 +186,8 @@ const AdminPage = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [listingView, setListingView] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const fallbackSplit = useMemo(() => splitProperties(), []);
 
   useEffect(() => {
@@ -221,8 +268,13 @@ const AdminPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, authed, fallbackSplit]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [listingView, lang]);
+
   const uploadFiles = async (files) => {
     if (!files?.length) return [];
+
     const uploadThroughServer = async (batch) => {
       if (!batch.length) return [];
 
@@ -411,33 +463,28 @@ const AdminPage = () => {
     });
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const login = async () => {
-      setError('');
-      setStatus('');
-      setAuthBusy(true);
-      try {
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ user: formAuth.user, pass: formAuth.pass }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error || 'Nespravne udaje.');
-        setAuthed(true);
-        setFormAuth({ user: '', pass: '' });
-        await loadProperties(lang);
-      } catch (err) {
-        setAuthed(false);
-        setError(err.message || 'Nespravne udaje.');
-      } finally {
-        setAuthBusy(false);
-      }
-    };
-
-    login();
+    setError('');
+    setStatus('');
+    setAuthBusy(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user: formAuth.user, pass: formAuth.pass }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Nespravne udaje.');
+      setAuthed(true);
+      setFormAuth({ user: '', pass: '' });
+    } catch (err) {
+      setAuthed(false);
+      setError(err.message || 'Nespravne udaje.');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -448,6 +495,8 @@ const AdminPage = () => {
       setAuthed(false);
       setStatus('');
       setError('');
+      setEditing(null);
+      setEditFiles([]);
       setProperties(splitProperties());
       setAuthBusy(false);
     }
@@ -575,14 +624,7 @@ const AdminPage = () => {
     setError('');
     try {
       const ensured = await ensurePersistedProperty(prop);
-      const images = withCoverFirst(toImages(ensured.images), ensured.image);
-      const videos = toVideos(ensured.videos);
-      setEditing({
-        ...ensured,
-        images,
-        videos,
-        description: ensured.description || '',
-      });
+      setEditing(normalizeEditableProperty(ensured));
       setEditFiles([]);
     } catch (err) {
       setError(err.message || 'Nelze nacist detail.');
@@ -671,6 +713,9 @@ const AdminPage = () => {
         ...editing,
         id: editing.id,
         language: lang,
+        sqm: toNumberOrNull(editing.sqm),
+        rooms: toNumberOrNull(editing.rooms),
+        tag: editing.tag || 'Nova',
         description: editing.description || '',
         images: mergedImages,
         videos: mergedVideos,
@@ -703,498 +748,834 @@ const AdminPage = () => {
 
   const activeCount = properties.active?.length || 0;
   const soldCount = properties.sold?.length || 0;
+  const totalCount = activeCount + soldCount;
+  const isLoginScreen = ADMIN_ENABLED && !sessionLoading && !authed;
+  const listingBuckets = useMemo(
+    () => ({
+      all: [...(properties.active || []), ...(properties.sold || [])],
+      active: properties.active || [],
+      sold: properties.sold || [],
+    }),
+    [properties]
+  );
+  const filteredProperties = listingBuckets[listingView] || [];
+  const totalPages = Math.max(1, Math.ceil(filteredProperties.length / PROPERTY_PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedProperties = filteredProperties.slice(
+    (safeCurrentPage - 1) * PROPERTY_PAGE_SIZE,
+    safeCurrentPage * PROPERTY_PAGE_SIZE
+  );
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const feedbackTone = error ? 'error' : status ? 'success' : loading ? 'info' : null;
+  const feedbackMessage = error || status || (loading ? 'Nacitam aktualni data...' : '');
 
-  if (!ADMIN_ENABLED) {
+  useEffect(() => {
+    if (currentPage !== safeCurrentPage) {
+      setCurrentPage(safeCurrentPage);
+    }
+  }, [currentPage, safeCurrentPage]);
+
+  const renderFeedback = (message = feedbackMessage, tone = feedbackTone) => {
+    if (!message || !tone) return null;
+
+    const icon =
+      tone === 'error' ? (
+        <CircleAlert size={18} />
+      ) : tone === 'info' ? (
+        <RefreshCw size={18} className={styles.spin} />
+      ) : (
+        <CheckCircle2 size={18} />
+      );
+
     return (
-      <div style={{ padding: 40, maxWidth: 720, margin: '0 auto' }}>
-        <h1>Admin je momentalne vypnuty</h1>
-        <p>Tento build nema povolene admin rozhrani. Pro produkcni provoz na Vercel zapnete serverove API a databazi.</p>
-        <p>Nastavte promennou NEXT_PUBLIC_ENABLE_ADMIN=1 a znovu nasadte aplikaci.</p>
+      <div
+        className={cx(
+          styles.statusBar,
+          tone === 'success' && styles.statusSuccess,
+          tone === 'error' && styles.statusError,
+          tone === 'info' && styles.statusInfo
+        )}
+      >
+        {icon}
+        <span>{message}</span>
       </div>
     );
-  }
+  };
 
-  if (sessionLoading) {
+  const renderPendingPreviewCard = ({ src, file, selected, onSelect, onRemove, alt }) => {
+    const isVideo = file?.type?.startsWith('video/');
+
     return (
-      <div style={{ padding: 40, maxWidth: 720, margin: '0 auto' }}>
-        <h1>Admin panel</h1>
-        <p>Overuji prihlaseni...</p>
+      <div key={`${src}-${alt}`} className={cx(styles.previewCard, selected && styles.previewSelected)}>
+        {isVideo ? (
+          <video src={src} className={styles.previewMedia} controls muted playsInline />
+        ) : (
+          <img src={src} alt={alt} className={styles.previewMedia} />
+        )}
+        <span className={styles.previewBadge}>{isVideo ? 'Video' : 'Foto'}</span>
+        <button type="button" onClick={onRemove} className={styles.previewRemove}>
+          <X size={14} />
+        </button>
+        {!isVideo ? (
+          <button
+            type="button"
+            onClick={onSelect}
+            className={cx(styles.coverButton, selected && styles.coverButtonActive)}
+          >
+            {selected ? 'Titulka' : 'Nastavit titulku'}
+          </button>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderPropertyCard = (prop, soldView = false) => {
+    const itemKey = prop.id || prop.name;
+    const images = toImages(prop.images);
+    const videos = toVideos(prop.videos);
+    const cover = prop.image || images[0];
+    const mediaCount = images.length + videos.length;
+
+    return (
+      <article key={itemKey} className={cx(styles.propertyCard, soldView && styles.propertyCardSold)}>
+        <div className={styles.propertyVisual}>
+          {cover ? (
+            <>
+              <img src={cover} alt={prop.name} className={styles.propertyImage} />
+              <div className={styles.propertyOverlay} />
+            </>
+          ) : (
+            <div className={styles.propertyFallback}>
+              <Sparkles size={22} />
+              <span>Bez titulni fotky</span>
+            </div>
+          )}
+          <span
+            className={cx(
+              styles.stateBadge,
+              soldView ? styles.stateBadgeSold : styles.stateBadgeActive
+            )}
+          >
+            {soldView ? 'Prodano' : 'Aktivni'}
+          </span>
+          {prop.tag ? <span className={styles.tagBadge}>{prop.tag}</span> : null}
+          <span className={styles.mediaBadge}>
+            <Images size={14} />
+            {mediaCount} media
+          </span>
+        </div>
+
+        <div className={styles.propertyBody}>
+          <div className={styles.propertyHeader}>
+            <div>
+              <h3 className={styles.propertyTitle}>{prop.name}</h3>
+              <p className={styles.propertyLocation}>{prop.location}</p>
+            </div>
+            <div className={styles.propertyPrice}>{prop.price}</div>
+          </div>
+
+          <div className={styles.propertyMeta}>
+            {prop.sqm ? <span className={styles.metaChip}>{prop.sqm} m2</span> : null}
+            {prop.rooms ? <span className={styles.metaChip}>{prop.rooms} pokoje</span> : null}
+            {videos.length ? (
+              <span className={styles.metaChip}>
+                <Film size={14} />
+                {videos.length} videa
+              </span>
+            ) : null}
+            {!videos.length && images.length ? (
+              <span className={styles.metaChip}>
+                <Images size={14} />
+                {images.length} fotek
+              </span>
+            ) : null}
+          </div>
+
+          <div className={styles.propertyActions}>
+            <button
+              type="button"
+              className={cx(styles.button, styles.buttonGhost)}
+              onClick={() => startEdit(prop)}
+            >
+              <Pencil size={16} />
+              Upravit
+            </button>
+
+            <button
+              type="button"
+              className={cx(styles.button, styles.buttonDanger)}
+              onClick={() => removeProperty(prop)}
+              disabled={deletingId === itemKey}
+            >
+              {deletingId === itemKey ? <Loader2 size={16} className={styles.spin} /> : <Trash2 size={16} />}
+              Smazat
+            </button>
+
+            <button
+              type="button"
+              className={cx(styles.button, soldView ? styles.buttonOutline : styles.buttonAccent)}
+              onClick={() => toggleSold(prop, !soldView)}
+              disabled={togglingId === itemKey}
+            >
+              {togglingId === itemKey ? (
+                <Loader2 size={16} className={styles.spin} />
+              ) : (
+                <ArrowLeftRight size={16} />
+              )}
+              {soldView ? 'Zpet do aktivnich' : 'Prodano'}
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  let pageContent = null;
+
+  if (!ADMIN_ENABLED) {
+    pageContent = (
+      <div className={styles.stateScreen}>
+        <section className={cx(styles.surface, styles.stateCard)}>
+          <div className={styles.brandTop}>
+            <span className={styles.eyebrow}>Admin panel</span>
+            <span className={styles.securityBadge}>
+              <CircleAlert size={14} />
+              Vypnuto
+            </span>
+          </div>
+          <h1 className={styles.stateTitle}>Admin rozhrani je v tomhle buildu vypnute</h1>
+          <p className={styles.stateText}>
+            Tady se ma zobrazit prihlaseni a sprava nabidek, ale aplikace nema povoleny admin mod.
+          </p>
+          <div className={styles.stateList}>
+            <div className={styles.stateItem}>Nastav `NEXT_PUBLIC_ENABLE_ADMIN=1`.</div>
+            <div className={styles.stateItem}>Zkontroluj serverove API a session cookie pro admin pristup.</div>
+            <div className={styles.stateItem}>Po zmene aplikaci znovu nasad nebo restartuj lokalni server.</div>
+          </div>
+        </section>
+      </div>
+    );
+  } else if (sessionLoading) {
+    pageContent = (
+      <div className={styles.stateScreen}>
+        <section className={cx(styles.surface, styles.stateCard)}>
+          <div className={styles.brandTop}>
+            <span className={styles.eyebrow}>Admin panel</span>
+            <span className={styles.securityBadge}>
+              <ShieldCheck size={14} />
+              Overeni relace
+            </span>
+          </div>
+          <h1 className={styles.stateTitle}>Kontroluji prihlaseni</h1>
+          <p className={styles.stateText}>Jakmile overime session, otevreme login nebo rovnou dashboard.</p>
+          <div className={cx(styles.statusBar, styles.statusInfo)}>
+            <Loader2 size={18} className={styles.spin} />
+            <span>Pripravuji admin prostredi...</span>
+          </div>
+        </section>
+      </div>
+    );
+  } else if (!authed) {
+    pageContent = (
+      <div className={styles.loginLayout}>
+        <section className={cx(styles.surface, styles.brandPanel)}>
+          <div className={styles.brandTop}>
+            <span className={styles.eyebrow}>Admin entry</span>
+            <span className={styles.securityBadge}>
+              <ShieldCheck size={14} />
+              Pouze interni pristup
+            </span>
+          </div>
+
+          <div className={styles.loginIntro}>
+            <div className={styles.loginLogoWrap}>
+              <img src="/MAINLOGO.png" alt="Egyptsko Ceska Reality" className={styles.loginLogo} />
+            </div>
+
+            <div className={styles.loginCopy}>
+              <h1 className={styles.loginTitle}>Sprava nemovitosti</h1>
+              <p className={styles.loginText}>
+                Prihlaseni do administrace pro pridani, upravu a mazani nabidek.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.loginInfoList}>
+            <div className={styles.loginInfoItem}>Pridavani a uprava nabidek</div>
+            <div className={styles.loginInfoItem}>Nahravani fotek a videi</div>
+            <div className={styles.loginInfoItem}>Presun mezi aktivni a prodane</div>
+            <div className={styles.loginInfoItem}>Sprava jazykovych mutaci CZ / EN / DE</div>
+          </div>
+        </section>
+
+        <section className={cx(styles.surface, styles.loginCard)}>
+          <div>
+            <p className={styles.pretitle}>Prihlaseni</p>
+            <h2 className={styles.cardTitle}>Admin</h2>
+            <p className={styles.cardText}>
+              Zadej uzivatelske jmeno a heslo.
+            </p>
+          </div>
+
+          {error ? renderFeedback(error, 'error') : null}
+
+          <form onSubmit={handleLogin} className={styles.loginForm}>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Uzivatel</span>
+              <input
+                className={styles.input}
+                placeholder="admin"
+                value={formAuth.user}
+                onChange={(e) => setFormAuth({ ...formAuth, user: e.target.value })}
+                disabled={authBusy}
+                autoComplete="username"
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Heslo</span>
+              <input
+                className={styles.input}
+                placeholder="********"
+                type="password"
+                value={formAuth.pass}
+                onChange={(e) => setFormAuth({ ...formAuth, pass: e.target.value })}
+                disabled={authBusy}
+                autoComplete="current-password"
+              />
+            </label>
+
+            <button
+              type="submit"
+              className={cx(styles.button, styles.buttonPrimary, styles.buttonFull)}
+              disabled={authBusy}
+            >
+              {authBusy ? <Loader2 size={18} className={styles.spin} /> : <ShieldCheck size={18} />}
+              {authBusy ? 'Prihlasuji...' : 'Prihlasit se'}
+            </button>
+          </form>
+
+          <div className={styles.loginFootnote}>
+            Po vyprseni session te admin vrati zpet na login.
+          </div>
+        </section>
+      </div>
+    );
+  } else {
+    pageContent = (
+      <div className={styles.dashboardStack}>
+        <header className={cx(styles.surface, styles.heroCard)}>
+          <div className={styles.heroMain}>
+            <div className={styles.brandTop}>
+              <span className={styles.eyebrow}>Admin cockpit</span>
+              <span className={styles.securityBadge}>
+                <ShieldCheck size={14} />
+                Prihlaseno
+              </span>
+            </div>
+
+            <h1 className={styles.heroTitle}>Sprava nemovitosti</h1>
+            <p className={styles.heroDescription}>
+              Nahraj fotky a videa, prepinej mezi jazyky a posouvej nabidky mezi aktivni a prodane z jednoho cisteho rozhrani.
+            </p>
+
+            <div className={styles.actionCluster}>
+              <div className={styles.languageRow}>
+                {languages.map((languageOption) => (
+                  <button
+                    key={languageOption}
+                    type="button"
+                    className={cx(
+                      styles.languageTab,
+                      lang === languageOption && styles.languageTabActive
+                    )}
+                    onClick={() => setLang(languageOption)}
+                  >
+                    {languageOption.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.heroActions}>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost)}
+                  onClick={() => loadProperties(lang)}
+                  disabled={loading || authBusy}
+                >
+                  {loading ? <Loader2 size={16} className={styles.spin} /> : <RefreshCw size={16} />}
+                  Obnovit
+                </button>
+
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonOutline)}
+                  onClick={handleLogout}
+                  disabled={authBusy}
+                >
+                  {authBusy ? <Loader2 size={16} className={styles.spin} /> : <LogOut size={16} />}
+                  {authBusy ? 'Odhlasuji...' : 'Odhlasit'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.metricsGrid}>
+            <div className={styles.metricCard}>
+              <div className={styles.metricIcon}>
+                <LayoutDashboard size={18} />
+              </div>
+              <div className={styles.metricLabel}>Celkem nabidek</div>
+              <div className={styles.metricValue}>{totalCount}</div>
+              <div className={styles.metricHint}>Souhrn vsech zaznamu v aktualnim adminu.</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricIcon}>
+                <CheckCircle2 size={18} />
+              </div>
+              <div className={styles.metricLabel}>Aktivni</div>
+              <div className={styles.metricValue}>{activeCount}</div>
+              <div className={styles.metricHint}>Prave publikovane nebo pripravene na prodej.</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricIcon}>
+                <ArrowLeftRight size={18} />
+              </div>
+              <div className={styles.metricLabel}>Prodane</div>
+              <div className={styles.metricValue}>{soldCount}</div>
+              <div className={styles.metricHint}>Archivovane polozky, ktere zustavaji po ruce.</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricIcon}>
+                <Globe2 size={18} />
+              </div>
+              <div className={styles.metricLabel}>Pracovni jazyk</div>
+              <div className={styles.metricValue}>{lang.toUpperCase()}</div>
+              <div className={styles.metricHint}>Vsechny nove i upravene zaznamy ted miri do teto mutace.</div>
+            </div>
+          </div>
+        </header>
+
+        {renderFeedback()}
+
+        <div className={styles.dashboardGrid}>
+          <section className={cx(styles.surface, styles.sectionCard, styles.editorCard)}>
+            <div className={styles.sectionHeading}>
+              <div className={styles.sectionTitleWrap}>
+                <span className={styles.helperBadge}>Publikace</span>
+                <h2 className={styles.sectionTitle}>
+                  <Building2 size={20} />
+                  Nova nemovitost
+                </h2>
+                <p className={styles.sectionDescription}>
+                  Vypln zakladni data, pridej media a vyber titulni fotku pro listing.
+                </p>
+              </div>
+              <span className={styles.helperBadge}>{lang.toUpperCase()}</span>
+            </div>
+
+            <form onSubmit={addProperty} className={styles.editorForm}>
+              <div className={styles.fieldRowTwo}>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Nazev</span>
+                  <input
+                    className={styles.input}
+                    placeholder="Napriklad Byt s vyhledem na more"
+                    value={newProperty.name}
+                    onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Lokace</span>
+                  <input
+                    className={styles.input}
+                    placeholder="Hurghada, Sahl Hasheesh..."
+                    value={newProperty.location}
+                    onChange={(e) => setNewProperty({ ...newProperty, location: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className={styles.fieldRowThree}>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Cena</span>
+                  <input
+                    className={styles.input}
+                    placeholder="Napriklad 85 000 EUR"
+                    value={newProperty.price}
+                    onChange={(e) => setNewProperty({ ...newProperty, price: e.target.value })}
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>m2</span>
+                  <input
+                    className={styles.input}
+                    placeholder="74"
+                    value={newProperty.sqm}
+                    onChange={(e) => setNewProperty({ ...newProperty, sqm: e.target.value })}
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Pokoje</span>
+                  <input
+                    className={styles.input}
+                    placeholder="3"
+                    value={newProperty.rooms}
+                    onChange={(e) => setNewProperty({ ...newProperty, rooms: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Stitek</span>
+                <input
+                  className={styles.input}
+                  placeholder="Nova, Top, Investice..."
+                  value={newProperty.tag}
+                  onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })}
+                />
+              </label>
+
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Popis</span>
+                <textarea
+                  className={styles.textarea}
+                  placeholder="Strucny i detailni popis nemovitosti"
+                  value={newProperty.description}
+                  onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
+                />
+              </label>
+
+              <label className={styles.uploadArea}>
+                <div className={styles.uploadIcon}>
+                  <UploadCloud size={20} />
+                </div>
+                <div>
+                  <div className={styles.uploadTitle}>Nahraj fotky a videa</div>
+                  <div className={styles.uploadText}>
+                    Vyber aspon jedno medium. U vetsich souboru se admin sam prepne na primy upload do Blob uloziste.
+                  </div>
+                </div>
+                <span className={styles.uploadCta}>Vybrat soubory</span>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    setNewFiles(Array.from(e.target.files || []));
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+
+              {!!newPreviews.length && (
+                <div className={styles.previewSection}>
+                  <div className={styles.sectionHeading}>
+                    <div className={styles.sectionTitleWrap}>
+                      <span className={styles.helperBadge}>Prehled nahravky</span>
+                      <p className={styles.sectionDescription}>
+                        U fotek muzes hned vybrat titulni snimek. Nepotrebne soubory klidne vyhod jeste pred ulozenim.
+                      </p>
+                    </div>
+                    <span className={styles.helperBadge}>{newFiles.length} souboru</span>
+                  </div>
+
+                  <div className={styles.previewGrid}>
+                    {newPreviews.map((src, idx) =>
+                      renderPendingPreviewCard({
+                        src,
+                        file: newFiles[idx],
+                        selected:
+                          isImageFile(newFiles[idx]) &&
+                          newCoverSelection === getPendingCoverValue(newFiles[idx]),
+                        onSelect: () => setNewCoverSelection(getPendingCoverValue(newFiles[idx])),
+                        onRemove: () => removePendingNewFile(idx),
+                        alt: `Nahrane medium ${idx + 1}`,
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className={cx(styles.button, styles.buttonPrimary, styles.buttonFull)}
+                disabled={savingNew}
+              >
+                {savingNew ? <Loader2 size={18} className={styles.spin} /> : <CheckCircle2 size={18} />}
+                {savingNew ? 'Ukladam...' : 'Ulozit nemovitost'}
+              </button>
+            </form>
+          </section>
+
+          <section className={cx(styles.surface, styles.sectionCard, styles.listingCard)}>
+            <div className={cx(styles.sectionHeading, styles.listingHeader)}>
+              <div className={styles.sectionTitleWrap}>
+                <span className={styles.helperBadge}>Prehled</span>
+                <h2 className={styles.sectionTitle}>
+                  <LayoutDashboard size={20} />
+                  Sprava nabidek
+                </h2>
+                <p className={styles.sectionDescription}>
+                  Nabidky jsou pod formularem v samostatnem bloku. Prepines si stav a pri vetsim poctu listujes po strankach.
+                </p>
+              </div>
+              <div className={styles.listingMeta}>
+                <span className={styles.helperBadge}>{totalCount} celkem</span>
+                <span className={styles.helperBadge}>Strana {safeCurrentPage} / {totalPages}</span>
+              </div>
+            </div>
+
+            <div className={styles.listingToolbar}>
+              <div className={styles.viewTabs}>
+                <button
+                  type="button"
+                  className={cx(styles.viewTab, listingView === 'all' && styles.viewTabActive)}
+                  onClick={() => setListingView('all')}
+                >
+                  Vse
+                  <span className={styles.viewTabCount}>{totalCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={cx(styles.viewTab, listingView === 'active' && styles.viewTabActive)}
+                  onClick={() => setListingView('active')}
+                >
+                  Aktivni
+                  <span className={styles.viewTabCount}>{activeCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={cx(styles.viewTab, listingView === 'sold' && styles.viewTabActive)}
+                  onClick={() => setListingView('sold')}
+                >
+                  Prodane
+                  <span className={styles.viewTabCount}>{soldCount}</span>
+                </button>
+              </div>
+
+              <div className={styles.listingSummary}>
+                {filteredProperties.length ? (
+                  <>
+                    Zobrazeno {paginatedProperties.length} z {filteredProperties.length} polozek
+                  </>
+                ) : (
+                  <>V tomhle filtru zatim nic neni</>
+                )}
+              </div>
+            </div>
+
+            {paginatedProperties.length ? (
+              <div className={styles.propertyGrid}>
+                {paginatedProperties.map((prop) => renderPropertyCard(prop, Boolean(prop.sold)))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>
+                {listingView === 'sold' ? <CheckCircle2 size={18} /> : <Sparkles size={18} />}
+                <div>
+                  <div className={styles.emptyStateTitle}>
+                    {listingView === 'sold'
+                      ? 'Archiv je zatim prazdny'
+                      : listingView === 'active'
+                        ? 'Zatim zadne aktivni inzeraty'
+                        : 'Zatim nejsou zadne nemovitosti'}
+                  </div>
+                  <div className={styles.emptyStateText}>
+                    {listingView === 'sold'
+                      ? 'Jakmile neco oznacis jako prodane, zustane to tady po ruce.'
+                      : 'Nova nabidka se objevi hned po ulozeni formulare nahore.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {totalPages > 1 ? (
+              <div className={styles.pagination}>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.paginationButton)}
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage === 1}
+                >
+                  Predchozi
+                </button>
+
+                <div className={styles.paginationPages}>
+                  {pageNumbers.map((pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      className={cx(
+                        styles.paginationPage,
+                        pageNumber === safeCurrentPage && styles.paginationPageActive
+                      )}
+                      onClick={() => setCurrentPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.paginationButton)}
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                >
+                  Dalsi
+                </button>
+              </div>
+            ) : null}
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f4f5f8',
-        padding: '28px 16px 36px',
-      }}
-    >
-      <div style={{ maxWidth: 1100, margin: '0 auto', color: '#0f1c2d' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <p style={{ margin: 0, color: '#5b6b7a', letterSpacing: 0.3, fontSize: 13 }}>Admin panel</p>
-            <h1 style={{ margin: '2px 0 6px', fontSize: 28, fontWeight: 800 }}>Sprava nemovitosti</h1>
-            <p style={{ margin: 0, color: '#5b6b7a', maxWidth: 640, lineHeight: 1.45 }}>
-              Nahrajte fotky, vyplnte zakladni informace a jednoduse prepnite nabidku mezi aktivni/prodano.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {authed && (
-              <>
-                <button onClick={() => loadProperties(lang)} style={{ ...chipBtn, background: '#0f2c4d', color: '#fff' }}>
-                  <RefreshCw size={16} />
-                  Obnovit
-                </button>
-                <button onClick={handleLogout} style={{ ...chipBtn, background: '#fff', color: '#0f2c4d' }} disabled={authBusy}>
-                  <LogOut size={16} />
-                  {authBusy ? 'Odhlasuji...' : 'Odhlasit'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+    <div className={cx(styles.shell, isLoginScreen && styles.shellLogin)}>
+      <style>{globalStyles}</style>
+      <div className={styles.orbOne} />
+      <div className={styles.orbTwo} />
+      <div className={styles.orbThree} />
 
-        {!authed ? (
-          <div style={{ ...card, maxWidth: 420 }}>
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Prihlaseni</h3>
-            <form onSubmit={handleLogin} style={{ display: 'grid', gap: 12 }}>
-              <input
-                placeholder="Uzivatel"
-                value={formAuth.user}
-                onChange={(e) => setFormAuth({ ...formAuth, user: e.target.value })}
-                style={inputStyle}
-                disabled={authBusy}
-              />
-              <input
-                placeholder="Heslo"
-                type="password"
-                value={formAuth.pass}
-                onChange={(e) => setFormAuth({ ...formAuth, pass: e.target.value })}
-                style={inputStyle}
-                disabled={authBusy}
-              />
-              <button type="submit" style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 8 }} disabled={authBusy}>
-                {authBusy ? <Loader2 size={18} /> : <CheckCircle2 size={18} />}
-                {authBusy ? 'Prihlasuji...' : 'Prihlasit'}
-              </button>
-              {error && <div style={{ color: '#b42318', fontSize: 13 }}>{error}</div>}
-            </form>
-          </div>
-        ) : (
-          <>
-            <div style={{ ...card, marginBottom: 16 }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {languages.map((l) => (
-                    <button
-                      key={l}
-                      onClick={() => setLang(l)}
-                      style={{
-                        ...pillBtn,
-                        background: lang === l ? '#0f2c4d' : '#eef2fa',
-                        color: lang === l ? '#fff' : '#0f2c4d',
-                        borderColor: lang === l ? '#0f2c4d' : '#d7deed',
-                      }}
-                    >
-                      {l.toUpperCase()}
-                    </button>
-                  ))}
+      <div className={cx(styles.frame, isLoginScreen && styles.frameLogin)}>{pageContent}</div>
+
+      {editing && authed ? (
+        <div className={styles.modalOverlay} onClick={() => !savingEdit && setEditing(null)}>
+          <div className={cx(styles.surface, styles.modalCard)} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <div className={styles.brandTop}>
+                  <span className={styles.eyebrow}>Editace nabidky</span>
+                  <span className={styles.securityBadge}>
+                    <Sparkles size={14} />
+                    Live update
+                  </span>
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={statChip}>
-                    <CheckCircle2 size={16} color="#20a36b" />
-                    Aktivni: {activeCount}
-                  </div>
-                  <div style={statChip}>
-                    <ArrowLeftRight size={16} color="#d28b37" />
-                    Prodane: {soldCount}
-                  </div>
+                <h2 className={styles.modalTitle}>{editing.name}</h2>
+                <div className={styles.modalMeta}>
+                  {editing.location ? <span className={styles.helperBadge}>{editing.location}</span> : null}
+                  <span className={styles.helperBadge}>
+                    {(editing.images?.length || 0) + (editing.videos?.length || 0) + editFiles.length} media
+                  </span>
                 </div>
               </div>
-              {loading && <div style={{ color: '#6b7280', fontSize: 13, marginTop: 8 }}>Nacitam data...</div>}
-              {status && <div style={{ color: '#1b7a2f', fontSize: 13, marginTop: 8 }}>{status}</div>}
-              {error && <div style={{ color: '#b42318', fontSize: 13, marginTop: 8 }}>{error}</div>}
+
+              <button
+                type="button"
+                className={cx(styles.button, styles.buttonGhost)}
+                onClick={() => !savingEdit && setEditing(null)}
+              >
+                <X size={16} />
+                Zavrit
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
-              <section style={{ ...card, minWidth: 320 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <UploadCloud size={20} color="#0f2c4d" />
-                  <h3 style={{ margin: 0 }}>Nova nemovitost</h3>
-                </div>
-                <form onSubmit={addProperty} style={{ display: 'grid', gap: 10, maxWidth: 520 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <input
-                      style={inputStyle}
-                      placeholder="Nazev"
-                      value={newProperty.name}
-                      onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="Lokace"
-                      value={newProperty.location}
-                      onChange={(e) => setNewProperty({ ...newProperty, location: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    <input
-                      style={inputStyle}
-                      placeholder="Cena"
-                      value={newProperty.price}
-                      onChange={(e) => setNewProperty({ ...newProperty, price: e.target.value })}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="m2"
-                      value={newProperty.sqm}
-                      onChange={(e) => setNewProperty({ ...newProperty, sqm: e.target.value })}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="Pokoje"
-                      value={newProperty.rooms}
-                      onChange={(e) => setNewProperty({ ...newProperty, rooms: e.target.value })}
-                    />
-                  </div>
-                  <input
-                    style={inputStyle}
-                    placeholder="Stitek (napr. Nova, Top)"
-                    value={newProperty.tag}
-                    onChange={(e) => setNewProperty({ ...newProperty, tag: e.target.value })}
-                  />
-                  <textarea
-                    style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
-                    placeholder="Popis / detail nemovitosti"
-                    value={newProperty.description}
-                    onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
-                  />
-                  <label style={uploadBox}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Nahrajte media</div>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>Vyberte obrazky nebo videa (minimalne jedno medium).</div>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        setNewFiles(Array.from(e.target.files || []));
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                  {!!newPreviews.length && (
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>U fotek muzes vybrat titulni obrazek a nepotrebne soubory odebrat.</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
-                      {newPreviews.map((src, idx) => (
-                        <div
-                          key={src}
-                          style={{
-                            ...thumb,
-                            position: 'relative',
-                            borderColor:
-                              isImageFile(newFiles[idx]) && newCoverSelection === getPendingCoverValue(newFiles[idx])
-                                ? '#0f2c4d'
-                                : '#e5e7eb',
-                            boxShadow:
-                              isImageFile(newFiles[idx]) && newCoverSelection === getPendingCoverValue(newFiles[idx])
-                                ? '0 0 0 2px rgba(15, 44, 77, 0.12)'
-                                : 'none',
-                          }}
-                        >
-                          {newFiles[idx]?.type?.startsWith('video/') ? (
-                            <video
-                              src={src}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                              controls
-                              muted
-                              playsInline
-                            />
-                          ) : (
-                            <img
-                              src={src}
-                              alt={`Nahrany obrazek ${idx + 1}`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                            />
-                          )}
-                          <button type="button" onClick={() => removePendingNewFile(idx)} style={removeBtn}>
-                            x
-                          </button>
-                          {isImageFile(newFiles[idx]) && (
-                            <button
-                              type="button"
-                              onClick={() => setNewCoverSelection(getPendingCoverValue(newFiles[idx]))}
-                              style={{
-                                ...coverSelectBtn,
-                                background:
-                                  newCoverSelection === getPendingCoverValue(newFiles[idx]) ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
-                                color: newCoverSelection === getPendingCoverValue(newFiles[idx]) ? '#fff' : '#0f2c4d',
-                              }}
-                            >
-                              {newCoverSelection === getPendingCoverValue(newFiles[idx]) ? 'Titulka' : 'Nastavit titulku'}
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    </div>
-                  )}
-                  <button type="submit" disabled={savingNew} style={{ ...primaryBtn, opacity: savingNew ? 0.8 : 1 }}>
-                    {savingNew ? <Loader2 size={18} /> : <CheckCircle2 size={18} />}
-                    {savingNew ? 'Ukladam...' : 'Ulozit nemovitost'}
-                  </button>
-                </form>
-              </section>
-
-              <section style={{ ...card }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <Pencil size={20} color="#0f2c4d" />
-                  <h3 style={{ margin: 0 }}>Prehled inzeratu</h3>
-                </div>
-                <div style={{ display: 'grid', gap: 12 }}>
-                  <div>
-                    <div style={listHeader}>
-                      <strong>Aktivni</strong>
-                      <span style={{ color: '#6b7280', fontSize: 13 }}>{activeCount} polozek</span>
-                    </div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {(properties.active || []).map((prop) => {
-                        const imgs = toImages(prop.images);
-                        const cover = prop.image || imgs[0];
-                        return (
-                          <div key={prop.id || prop.name} style={propertyRow}>
-                            <div style={rowLeft}>
-                              {cover ? (
-                                <img src={cover} alt={prop.name} style={rowThumb} />
-                              ) : (
-                                <div style={rowPlaceholder}>Bez fotky</div>
-                              )}
-                              <div>
-                                <div style={{ fontWeight: 700 }}>{prop.name}</div>
-                                <div style={{ color: '#6b7280', fontSize: 13 }}>{prop.location}</div>
-                                <div style={{ color: '#0f2c4d', fontWeight: 700 }}>{prop.price}</div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <button style={ghostBtn} onClick={() => startEdit(prop)}>
-                                <Pencil size={16} />
-                                Upravit
-                              </button>
-                              <button
-                                style={dangerBtn}
-                                onClick={() => removeProperty(prop)}
-                                disabled={deletingId === (prop.id || prop.name)}
-                              >
-                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
-                                Smazat
-                              </button>
-                              <button
-                                style={{ ...pillBtn, background: '#102a42', color: '#fff' }}
-                                onClick={() => toggleSold(prop, true)}
-                                disabled={togglingId === (prop.id || prop.name)}
-                              >
-                                {togglingId === (prop.id || prop.name) ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
-                                Prodano
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {!properties.active?.length && <div style={{ color: '#6b7280', fontSize: 13 }}>Zatim zadne aktivni inzeraty.</div>}
-                    </div>
-                  </div>
-
-                  <div style={{ height: 1, background: '#e5e7eb', margin: '4px 0' }} />
-
-                  <div>
-                    <div style={listHeader}>
-                      <strong>Prodane</strong>
-                      <span style={{ color: '#6b7280', fontSize: 13 }}>{soldCount} polozek</span>
-                    </div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {(properties.sold || []).map((prop) => {
-                        const imgs = toImages(prop.images);
-                        const cover = prop.image || imgs[0];
-                        return (
-                          <div key={prop.id || prop.name} style={{ ...propertyRow, background: '#f5f7fb' }}>
-                            <div style={rowLeft}>
-                              {cover ? (
-                                <img src={cover} alt={prop.name} style={rowThumb} />
-                              ) : (
-                                <div style={rowPlaceholder}>Bez fotky</div>
-                              )}
-                              <div>
-                                <div style={{ fontWeight: 700 }}>{prop.name}</div>
-                                <div style={{ color: '#6b7280', fontSize: 13 }}>{prop.location}</div>
-                                <div style={{ color: '#d28b37', fontWeight: 700 }}>PRODANO</div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <button style={ghostBtn} onClick={() => startEdit(prop)}>
-                                <Pencil size={16} />
-                                Upravit
-                              </button>
-                              <button
-                                style={dangerBtn}
-                                onClick={() => removeProperty(prop)}
-                                disabled={deletingId === (prop.id || prop.name)}
-                              >
-                                {deletingId === (prop.id || prop.name) ? <Loader2 size={16} /> : '✕'}
-                                Smazat
-                              </button>
-                              <button
-                                style={{ ...pillBtn, background: '#fff', color: '#0f2c4d', borderColor: '#d28b37' }}
-                                onClick={() => toggleSold(prop, false)}
-                                disabled={togglingId === (prop.id || prop.name)}
-                              >
-                                {togglingId === (prop.id || prop.name) ? <Loader2 size={16} /> : <ArrowLeftRight size={16} />}
-                                Zpet do aktivnich
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {!properties.sold?.length && <div style={{ color: '#6b7280', fontSize: 13 }}>Zatim nic prodaneho.</div>}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            {editing && (
-              <div style={drawerOverlay} onClick={() => !savingEdit && setEditing(null)}>
-                <div style={drawer} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div>
-                      <p style={{ margin: 0, color: '#5b6b7a', fontSize: 13 }}>Upravit nemovitost</p>
-                      <h3 style={{ margin: '4px 0 0' }}>{editing.name}</h3>
-                    </div>
-                    <button style={pillBtn} onClick={() => !savingEdit && setEditing(null)}>
-                      Zavrit
-                    </button>
-                  </div>
-
-                  <form onSubmit={saveEdit} style={{ display: 'grid', gap: 10 }}>
-                    <input
-                      style={inputStyle}
-                      placeholder="Nazev"
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="Lokace"
-                      value={editing.location}
-                      onChange={(e) => setEditing({ ...editing, location: e.target.value })}
-                    />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                      <input
-                        style={inputStyle}
-                        placeholder="Cena"
-                        value={editing.price}
-                        onChange={(e) => setEditing({ ...editing, price: e.target.value })}
-                      />
-                      <input
-                        style={inputStyle}
-                        placeholder="m2"
-                        value={editing.sqm}
-                        onChange={(e) => setEditing({ ...editing, sqm: e.target.value })}
-                      />
-                      <input
-                        style={inputStyle}
-                        placeholder="Pokoje"
-                        value={editing.rooms}
-                        onChange={(e) => setEditing({ ...editing, rooms: e.target.value })}
-                      />
-                    </div>
-                    <input
-                      style={inputStyle}
-                      placeholder="Stitek"
-                      value={editing.tag || ''}
-                      onChange={(e) => setEditing({ ...editing, tag: e.target.value })}
-                    />
-                    <textarea
-                      style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
-                      placeholder="Popis / detail nemovitosti"
-                      value={editing.description || ''}
-                      onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                    />
-
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontWeight: 700 }}>Aktualni fotky</div>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>Kliknutim nastavis, ktera fotka bude titulni.</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
-                        {(editing.images || []).map((src, idx) => (
-                          <div
-                            key={src + idx}
-                            style={{
-                              position: 'relative',
-                              borderRadius: 10,
-                              boxShadow: editing.image === src ? '0 0 0 2px rgba(15, 44, 77, 0.12)' : 'none',
-                            }}
-                          >
-                            <img
-                              src={src}
-                              alt={`Foto ${idx + 1}`}
-                              style={{
-                                width: '100%',
-                                height: 90,
-                                objectFit: 'cover',
-                                borderRadius: 10,
-                                border: editing.image === src ? '1px solid #0f2c4d' : '1px solid #e5e7eb',
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setEditing((prev) => (prev ? { ...prev, image: src } : prev))}
-                              style={{
-                                ...coverSelectBtn,
-                                background: editing.image === src ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
-                                color: editing.image === src ? '#fff' : '#0f2c4d',
-                              }}
-                            >
-                              {editing.image === src ? 'Titulka' : 'Nastavit titulku'}
-                            </button>
-                            <button type="button" onClick={() => removeExistingImage(idx)} style={removeBtn}>
-                              x
-                            </button>
-                          </div>
-                        ))}
-                        {!(editing.images || []).length && <div style={{ color: '#6b7280', fontSize: 13 }}>Zatim zadne ulozene fotky.</div>}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontWeight: 700 }}>Aktualni videa</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
-                        {(editing.videos || []).map((src, idx) => (
-                          <div key={src + idx} style={{ position: 'relative' }}>
-                            <video
-                              src={src}
-                              style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 10, border: '1px solid #e5e7eb' }}
-                              controls
-                              muted
-                              playsInline
-                            />
-                            <button type="button" onClick={() => removeExistingVideo(idx)} style={removeBtn}>
-                              x
-                            </button>
-                          </div>
-                        ))}
-                        {!(editing.videos || []).length && <div style={{ color: '#6b7280', fontSize: 13 }}>Zatim zadna ulozena videa.</div>}
-                      </div>
-                    </div>
-
-                    <label style={uploadBox}>
+            <form onSubmit={saveEdit}>
+              <div className={styles.modalGrid}>
+                <div className={styles.modalMain}>
+                  <section className={styles.modalBlock}>
+                    <div className={styles.modalBlockHeader}>
                       <div>
-                        <div style={{ fontWeight: 700, color: '#0f2c4d' }}>Pridat dalsi media</div>
-                        <div style={{ color: '#6b7280', fontSize: 13 }}>Nove obrazky i videa se pridaji ke stavajicim.</div>
+                        <h3 className={styles.modalBlockTitle}>Detaily nabidky</h3>
+                        <p className={styles.modalBlockText}>Uprav text, cenu i tag. Zmeny se ulozi do aktualni jazykove mutace.</p>
                       </div>
+                      <span className={styles.helperBadge}>{lang.toUpperCase()}</span>
+                    </div>
+
+                    <div className={styles.fieldRowTwo}>
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Nazev</span>
+                        <input
+                          className={styles.input}
+                          placeholder="Nazev"
+                          value={editing.name ?? ''}
+                          onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                        />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Lokace</span>
+                        <input
+                          className={styles.input}
+                          placeholder="Lokace"
+                          value={editing.location ?? ''}
+                          onChange={(e) => setEditing({ ...editing, location: e.target.value })}
+                        />
+                      </label>
+                    </div>
+
+                    <div className={styles.fieldRowThree}>
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Cena</span>
+                        <input
+                          className={styles.input}
+                          placeholder="Cena"
+                          value={editing.price ?? ''}
+                          onChange={(e) => setEditing({ ...editing, price: e.target.value })}
+                        />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>m2</span>
+                        <input
+                          className={styles.input}
+                          placeholder="m2"
+                          value={editing.sqm ?? ''}
+                          onChange={(e) => setEditing({ ...editing, sqm: e.target.value })}
+                        />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Pokoje</span>
+                        <input
+                          className={styles.input}
+                          placeholder="Pokoje"
+                          value={editing.rooms ?? ''}
+                          onChange={(e) => setEditing({ ...editing, rooms: e.target.value })}
+                        />
+                      </label>
+                    </div>
+
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>Stitek</span>
+                      <input
+                        className={styles.input}
+                        placeholder="Stitek"
+                        value={editing.tag || ''}
+                        onChange={(e) => setEditing({ ...editing, tag: e.target.value })}
+                      />
+                    </label>
+
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>Popis</span>
+                      <textarea
+                        className={styles.textarea}
+                        placeholder="Popis / detail nemovitosti"
+                        value={editing.description || ''}
+                        onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                      />
+                    </label>
+
+                    <label className={styles.uploadArea}>
+                      <div className={styles.uploadIcon}>
+                        <UploadCloud size={20} />
+                      </div>
+                      <div>
+                        <div className={styles.uploadTitle}>Pridat dalsi media</div>
+                        <div className={styles.uploadText}>
+                          Nove obrazky i videa se ulozi ke stavajicim souborum. U fotek muzes rovnou zvolit novou titulku.
+                        </div>
+                      </div>
+                      <span className={styles.uploadCta}>Pridat soubory</span>
                       <input
                         type="file"
                         accept="image/*,video/*"
@@ -1206,270 +1587,143 @@ const AdminPage = () => {
                         }}
                       />
                     </label>
+
                     {!!editPreviews.length && (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        <div style={{ color: '#6b7280', fontSize: 13 }}>I u novych fotek muzes rovnou zvolit titulni obrazek nebo soubor odebrat.</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
-                        {editPreviews.map((src, idx) => (
-                          <div
-                            key={src}
-                            style={{
-                              ...thumb,
-                              position: 'relative',
-                              borderColor:
-                                isImageFile(editFiles[idx]) && editing.image === getPendingCoverValue(editFiles[idx])
-                                  ? '#0f2c4d'
-                                  : '#e5e7eb',
-                              boxShadow:
-                                isImageFile(editFiles[idx]) && editing.image === getPendingCoverValue(editFiles[idx])
-                                  ? '0 0 0 2px rgba(15, 44, 77, 0.12)'
-                                  : 'none',
-                            }}
-                          >
-                            {editFiles[idx]?.type?.startsWith('video/') ? (
-                              <video
-                                src={src}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                                controls
-                                muted
-                                playsInline
-                              />
-                            ) : (
-                              <img
-                                src={src}
-                                alt={`Nova fotka ${idx + 1}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                              />
-                            )}
-                            <button type="button" onClick={() => removePendingEditFile(idx)} style={removeBtn}>
-                              x
-                            </button>
-                            {isImageFile(editFiles[idx]) && (
-                              <button
-                                type="button"
-                                onClick={() => setEditing((prev) => (prev ? { ...prev, image: getPendingCoverValue(editFiles[idx]) } : prev))}
-                                style={{
-                                  ...coverSelectBtn,
-                                  background: editing.image === getPendingCoverValue(editFiles[idx]) ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
-                                  color: editing.image === getPendingCoverValue(editFiles[idx]) ? '#fff' : '#0f2c4d',
-                                }}
-                              >
-                                {editing.image === getPendingCoverValue(editFiles[idx]) ? 'Titulka' : 'Nastavit titulku'}
-                              </button>
-                            )}
+                      <div className={styles.previewSection}>
+                        <div className={styles.sectionHeading}>
+                          <div className={styles.sectionTitleWrap}>
+                            <span className={styles.helperBadge}>Nove soubory</span>
+                            <p className={styles.sectionDescription}>
+                              Vyber titulku jeste pred ulozenim. Pokud uz mas zvolenou stavajici fotku, muzes ji nahradit novou.
+                            </p>
                           </div>
-                        ))}
-                      </div>
+                          <span className={styles.helperBadge}>{editFiles.length} souboru</span>
+                        </div>
+
+                        <div className={styles.previewGrid}>
+                          {editPreviews.map((src, idx) =>
+                            renderPendingPreviewCard({
+                              src,
+                              file: editFiles[idx],
+                              selected:
+                                isImageFile(editFiles[idx]) &&
+                                editing.image === getPendingCoverValue(editFiles[idx]),
+                              onSelect: () =>
+                                setEditing((prev) =>
+                                  prev ? { ...prev, image: getPendingCoverValue(editFiles[idx]) } : prev
+                                ),
+                              onRemove: () => removePendingEditFile(idx),
+                              alt: `Nove medium ${idx + 1}`,
+                            })
+                          )}
+                        </div>
                       </div>
                     )}
+                  </section>
+                </div>
 
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      <button type="submit" disabled={savingEdit} style={{ ...primaryBtn, flex: 1, opacity: savingEdit ? 0.8 : 1 }}>
-                        {savingEdit ? <Loader2 size={18} /> : <CheckCircle2 size={18} />}
-                        {savingEdit ? 'Ukladam...' : 'Ulozit zmeny'}
-                      </button>
-                      <button type="button" style={ghostBtn} onClick={() => setEditing(null)} disabled={savingEdit}>
-                        Zavrit
-                      </button>
+                <div className={styles.modalSide}>
+                  <section className={styles.modalBlock}>
+                    <div className={styles.modalBlockHeader}>
+                      <div>
+                        <h3 className={styles.modalBlockTitle}>Aktualni fotky</h3>
+                        <p className={styles.modalBlockText}>Kliknutim na tlacitko zvolis titulni obrazek. Krizek medium rovnou odstrani.</p>
+                      </div>
+                      <span className={styles.helperBadge}>{editing.images?.length || 0} fotek</span>
                     </div>
-                  </form>
+
+                    <div className={styles.savedMediaGrid}>
+                      {(editing.images || []).map((src, idx) => (
+                        <div
+                          key={`${src}-${idx}`}
+                          className={cx(
+                            styles.savedMediaCard,
+                            editing.image === src && styles.savedMediaSelected
+                          )}
+                        >
+                          <img src={src} alt={`Foto ${idx + 1}`} className={styles.savedMediaImage} />
+                          <button
+                            type="button"
+                            onClick={() => setEditing((prev) => (prev ? { ...prev, image: src } : prev))}
+                            className={cx(
+                              styles.coverButton,
+                              editing.image === src && styles.coverButtonActive
+                            )}
+                          >
+                            {editing.image === src ? 'Titulka' : 'Nastavit titulku'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(idx)}
+                            className={styles.previewRemove}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+
+                      {!(editing.images || []).length ? (
+                        <div className={styles.emptyInset}>Zatim zadne ulozene fotky.</div>
+                      ) : null}
+                    </div>
+                  </section>
+
+                  <section className={styles.modalBlock}>
+                    <div className={styles.modalBlockHeader}>
+                      <div>
+                        <h3 className={styles.modalBlockTitle}>Aktualni videa</h3>
+                        <p className={styles.modalBlockText}>Videa zustanou v galerii. Muzes je kdykoliv smazat a nahrat znovu.</p>
+                      </div>
+                      <span className={styles.helperBadge}>{editing.videos?.length || 0} videi</span>
+                    </div>
+
+                    <div className={styles.savedMediaGrid}>
+                      {(editing.videos || []).map((src, idx) => (
+                        <div key={`${src}-${idx}`} className={styles.savedMediaCard}>
+                          <video src={src} className={styles.savedMediaVideo} controls muted playsInline />
+                          <span className={styles.previewBadge}>Video</span>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingVideo(idx)}
+                            className={styles.previewRemove}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+
+                      {!(editing.videos || []).length ? (
+                        <div className={styles.emptyInset}>Zatim zadna ulozena videa.</div>
+                      ) : null}
+                    </div>
+                  </section>
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost)}
+                  onClick={() => setEditing(null)}
+                  disabled={savingEdit}
+                >
+                  Zavrit bez ulozeni
+                </button>
+                <button
+                  type="submit"
+                  className={cx(styles.button, styles.buttonPrimary)}
+                  disabled={savingEdit}
+                >
+                  {savingEdit ? <Loader2 size={18} className={styles.spin} /> : <CheckCircle2 size={18} />}
+                  {savingEdit ? 'Ukladam...' : 'Ulozit zmeny'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
-};
-
-const card = {
-  background: '#fff',
-  borderRadius: 16,
-  border: '1px solid #e3e7ef',
-  boxShadow: '0 10px 24px rgba(15, 28, 45, 0.08)',
-  padding: 18,
-};
-
-const inputStyle = {
-  padding: '12px 14px',
-  borderRadius: 8,
-  border: '1px solid #d7dce5',
-  fontSize: 14,
-  width: '100%',
-  background: '#fff',
-};
-
-const primaryBtn = {
-  padding: '12px 14px',
-  borderRadius: 10,
-  border: 'none',
-  background: '#0f2c4d',
-  color: '#fff',
-  fontWeight: 700,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  justifyContent: 'center',
-};
-
-const pillBtn = {
-  padding: '9px 12px',
-  borderRadius: 999,
-  border: '1px solid #d7dce5',
-  background: '#f8fafc',
-  color: '#0f2c4d',
-  fontWeight: 700,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-};
-
-const chipBtn = {
-  padding: '9px 12px',
-  borderRadius: 12,
-  border: '1px solid #0f2c4d',
-  background: '#fff',
-  color: '#0f2c4d',
-  fontWeight: 700,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-};
-
-const uploadBox = {
-  border: '1px dashed #b6c2d7',
-  borderRadius: 12,
-  padding: '14px 14px',
-  background: '#f8fbff',
-  cursor: 'pointer',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-};
-
-const thumb = {
-  borderRadius: 12,
-  overflow: 'hidden',
-  border: '1px solid #e5e7eb',
-  height: 90,
-};
-
-const statChip = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '8px 10px',
-  borderRadius: 10,
-  background: '#f4f6fb',
-  color: '#0f2c4d',
-  border: '1px solid #e3e7ef',
-  fontWeight: 700,
-  fontSize: 13,
-};
-
-const ghostBtn = {
-  ...pillBtn,
-  background: '#fff',
-  color: '#0f2c4d',
-  borderColor: '#d7dce5',
-};
-
-const dangerBtn = {
-  ...pillBtn,
-  background: '#fef2f2',
-  color: '#b91c1c',
-  borderColor: '#fecdd3',
-};
-
-const listHeader = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 8,
-};
-
-const propertyRow = {
-  border: '1px solid #e5e7eb',
-  borderRadius: 12,
-  padding: 10,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 10,
-};
-
-const rowLeft = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  minWidth: 0,
-};
-
-const rowThumb = {
-  width: 72,
-  height: 72,
-  objectFit: 'cover',
-  borderRadius: 10,
-  border: '1px solid #e5e7eb',
-};
-
-const rowPlaceholder = {
-  ...rowThumb,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: '#f5f6f9',
-  color: '#6b7280',
-  fontSize: 12,
-};
-
-const drawerOverlay = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(15,28,45,0.45)',
-  display: 'flex',
-  justifyContent: 'flex-end',
-  padding: 16,
-};
-
-const drawer = {
-  width: 420,
-  maxWidth: '90vw',
-  background: '#fff',
-  borderRadius: 16,
-  padding: 16,
-  boxShadow: '0 25px 50px rgba(0,0,0,0.18)',
-  overflowY: 'auto',
-  maxHeight: '100%',
-};
-
-const removeBtn = {
-  position: 'absolute',
-  top: 6,
-  right: 6,
-  border: 'none',
-  background: 'rgba(15,28,45,0.75)',
-  color: '#fff',
-  borderRadius: 20,
-  width: 22,
-  height: 22,
-  cursor: 'pointer',
-};
-
-const coverSelectBtn = {
-  position: 'absolute',
-  left: 6,
-  bottom: 6,
-  border: '1px solid rgba(15,28,45,0.15)',
-  borderRadius: 999,
-  padding: '4px 8px',
-  fontSize: 11,
-  fontWeight: 700,
-  cursor: 'pointer',
 };
 
 export default AdminPage;
