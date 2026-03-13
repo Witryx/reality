@@ -80,6 +80,11 @@ const Properties = ({ t, language = "cz" }) => {
     }
     return [];
   };
+  const withCoverFirst = (images = [], coverImage = null) => {
+    const cleaned = images.filter(Boolean);
+    if (!coverImage) return cleaned;
+    return [coverImage, ...cleaned.filter((src) => src !== coverImage)];
+  };
   const toVideos = (value) => {
     const isVideoUrl = (src = "") => /\.(mp4|webm|ogg|mov)$/i.test(src);
     if (Array.isArray(value)) return value.filter((v) => v && isVideoUrl(String(v)));
@@ -97,7 +102,7 @@ const Properties = ({ t, language = "cz" }) => {
   const toMediaItems = (item) => {
     if (!item) return [];
     const imageList = (() => {
-      const imgs = toImages(item.images);
+      const imgs = withCoverFirst(toImages(item.images), item.image);
       if (imgs.length) return imgs;
       if (item.image) return [item.image];
       return [];
@@ -256,7 +261,7 @@ const Properties = ({ t, language = "cz" }) => {
               <div className="listing-thumb">
                 {(() => {
                   const imgs = toImages(property.images);
-                  const cover = imgs[0] || property.image;
+                  const cover = property.image || imgs[0];
                   return (
                     <img
                       src={cover}

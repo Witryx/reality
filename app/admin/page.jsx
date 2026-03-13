@@ -47,6 +47,12 @@ const toImages = (value) => {
   return [];
 };
 
+const withCoverFirst = (images = [], coverImage = null) => {
+  const cleaned = images.filter(Boolean);
+  if (!coverImage) return cleaned;
+  return [coverImage, ...cleaned.filter((src) => src !== coverImage)];
+};
+
 const toVideos = (value) => {
   const isVideoUrl = (src = '') => /\.(mp4|webm|ogg|mov)$/i.test(String(src));
   if (Array.isArray(value)) return value.filter((video) => video && isVideoUrl(video));
@@ -569,12 +575,11 @@ const AdminPage = () => {
     setError('');
     try {
       const ensured = await ensurePersistedProperty(prop);
-      const images = toImages(ensured.images);
+      const images = withCoverFirst(toImages(ensured.images), ensured.image);
       const videos = toVideos(ensured.videos);
-      const cover = images.length ? images : ensured.image ? [ensured.image] : [];
       setEditing({
         ...ensured,
-        images: cover,
+        images,
         videos,
         description: ensured.description || '',
       });
@@ -960,7 +965,7 @@ const AdminPage = () => {
                     <div style={{ display: 'grid', gap: 10 }}>
                       {(properties.active || []).map((prop) => {
                         const imgs = toImages(prop.images);
-                        const cover = imgs[0] || prop.image;
+                        const cover = prop.image || imgs[0];
                         return (
                           <div key={prop.id || prop.name} style={propertyRow}>
                             <div style={rowLeft}>
@@ -1014,7 +1019,7 @@ const AdminPage = () => {
                     <div style={{ display: 'grid', gap: 10 }}>
                       {(properties.sold || []).map((prop) => {
                         const imgs = toImages(prop.images);
-                        const cover = imgs[0] || prop.image;
+                        const cover = prop.image || imgs[0];
                         return (
                           <div key={prop.id || prop.name} style={{ ...propertyRow, background: '#f5f7fb' }}>
                             <div style={rowLeft}>
