@@ -593,6 +593,29 @@ export const globalStyles = `
   .listing-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; filter: saturate(1.02) brightness(0.98); }
   .listing-card:hover .listing-thumb img { transform: scale(1.05); }
 
+  .listing-pagination-wrap {
+    display: grid;
+    gap: 12px;
+    margin-top: 22px;
+    align-items: center;
+    justify-items: center;
+  }
+
+  .listing-pagination-summary {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .listing-pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
   .logo-break {
     padding: 40px 24px;
     background:
@@ -1289,6 +1312,12 @@ export const globalStyles = `
 
   .page-btn:hover:enabled { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(7,23,40,0.18); border-color: rgba(217,179,106,0.6); }
   .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .page-btn.active {
+    background: linear-gradient(145deg, #0b2338, #0f7082);
+    color: #fdf7e9;
+    border-color: rgba(217,179,106,0.65);
+    box-shadow: 0 10px 20px rgba(7,23,40,0.22);
+  }
   .page-info { font-size: 14px; color: var(--muted); font-weight: 700; }
 
   @media (max-width: 960px) {

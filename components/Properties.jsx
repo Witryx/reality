@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Bed, ChevronLeft, ChevronRight, Mail, MapPin, Maximize, Maximize2, Phone, X } from "lucide-react";
 import SectionHeader from "./SectionHeader";
 
+const LISTINGS_PER_PAGE = 6;
+
 const loadingCopy = {
   cz: "Nacitam nabidku...",
   en: "Loading listings...",
@@ -32,6 +34,33 @@ const noImageCopy = {
   de: "Kein Bild",
 };
 
+const paginationCopy = {
+  cz: {
+    prev: "Predchozi strana",
+    next: "Dalsi strana",
+    page: "Strana",
+    of: "z",
+    showing: "Zobrazeno",
+    from: "z",
+  },
+  en: {
+    prev: "Previous page",
+    next: "Next page",
+    page: "Page",
+    of: "of",
+    showing: "Showing",
+    from: "of",
+  },
+  de: {
+    prev: "Vorherige Seite",
+    next: "Naechste Seite",
+    page: "Seite",
+    of: "von",
+    showing: "Angezeigt",
+    from: "von",
+  },
+};
+
 const Properties = ({ t, language = "cz" }) => {
   const [selected, setSelected] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -40,6 +69,7 @@ const Properties = ({ t, language = "cz" }) => {
   const [loadError, setLoadError] = useState("");
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const phoneNote = {
     cz: "CZ/EN · nejrychlejší spojení",
     en: "CZ/EN · fastest response",
@@ -198,7 +228,21 @@ const Properties = ({ t, language = "cz" }) => {
     return () => controller.abort();
   }, [language, t]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [language]);
+
   const listings = data.active;
+  const totalPages = Math.max(1, Math.ceil(listings.length / LISTINGS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedListings = listings.slice(
+    (safeCurrentPage - 1) * LISTINGS_PER_PAGE,
+    safeCurrentPage * LISTINGS_PER_PAGE
+  );
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const startItem = listings.length ? (safeCurrentPage - 1) * LISTINGS_PER_PAGE + 1 : 0;
+  const endItem = listings.length ? Math.min(safeCurrentPage * LISTINGS_PER_PAGE, listings.length) : 0;
+  const pageText = paginationCopy[language] || paginationCopy.en;
   const selectedMedia = selected ? toMediaItems(selected) : [];
   const totalMedia = selectedMedia.length;
   const hasGallery = totalMedia > 1;
@@ -224,6 +268,12 @@ const Properties = ({ t, language = "cz" }) => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [goNextImage, goPrevImage, isLightboxOpen]);
+
+  useEffect(() => {
+    if (currentPage !== safeCurrentPage) {
+      setCurrentPage(safeCurrentPage);
+    }
+  }, [currentPage, safeCurrentPage]);
 
   return (
     <section
@@ -256,7 +306,7 @@ const Properties = ({ t, language = "cz" }) => {
         )}
 
         <div className="listing-grid">
-          {listings.map((property) => (
+          {paginatedListings.map((property) => (
             <article key={property.id || property.name} className="listing-card">
               <div className="listing-thumb">
                 {(() => {
@@ -309,6 +359,52 @@ const Properties = ({ t, language = "cz" }) => {
             </article>
           ))}
         </div>
+
+        {listings.length > LISTINGS_PER_PAGE && (
+          <div className="listing-pagination-wrap">
+            <div className="listing-pagination-summary">
+              {pageText.showing} {startItem}-{endItem} {pageText.from} {listings.length}
+            </div>
+
+            <div className="listing-pagination">
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                aria-label={pageText.prev}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  className={`page-btn ${pageNumber === safeCurrentPage ? "active" : ""}`}
+                  onClick={() => setCurrentPage(pageNumber)}
+                  aria-label={`${pageText.page} ${pageNumber}`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                aria-label={pageText.next}
+              >
+                <ChevronRight size={16} />
+              </button>
+
+              <span className="page-info">
+                {pageText.page} {safeCurrentPage} {pageText.of} {totalPages}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {selected && (
