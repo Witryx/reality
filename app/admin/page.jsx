@@ -1,11 +1,27 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { upload } from '@vercel/blob/client';
 import { ArrowLeftRight, CheckCircle2, Loader2, LogOut, Pencil, RefreshCw, UploadCloud } from 'lucide-react';
 
 const ADMIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_ADMIN === '1';
 const languages = ['cz', 'en', 'de'];
 const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
+const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // Vercel request payload limit is lower than typical video sizes.
+const MULTIPART_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
+
+const sanitizeFileName = (name = 'upload') =>
+  String(name)
+    .replace(/[^a-zA-Z0-9_.-]/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 120);
+
+const shouldUseDirectUpload = (file) => {
+  if (typeof window === 'undefined') return false;
+  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (isLocalHost) return false;
+  return file?.type?.startsWith('video/') || file?.size > DIRECT_UPLOAD_THRESHOLD;
+};
 
 const splitProperties = (list = []) => {
   const active = [];
@@ -70,6 +86,34 @@ const readJsonSafe = async (res) => {
   }
 };
 
+const getFileKey = (file) =>
+  [file?.name || 'upload', file?.size || 0, file?.lastModified || 0, file?.type || 'file'].join(':');
+
+const getPendingCoverValue = (file) => `pending:${getFileKey(file)}`;
+const isPendingCoverValue = (value) => typeof value === 'string' && value.startsWith('pending:');
+const isImageFile = (file) => Boolean(file?.type?.startsWith('image/'));
+
+const pickFirstImageSelection = (files = []) => {
+  const firstImage = files.find(isImageFile);
+  return firstImage ? getPendingCoverValue(firstImage) : null;
+};
+
+const resolveCoverImage = ({ coverSelection, existingImages = [], pendingFiles = [], uploadedImages = [] }) => {
+  if (coverSelection && !isPendingCoverValue(coverSelection) && existingImages.includes(coverSelection)) {
+    return coverSelection;
+  }
+
+  if (isPendingCoverValue(coverSelection)) {
+    const pendingImages = pendingFiles.filter(isImageFile);
+    const pendingIndex = pendingImages.findIndex((file) => getPendingCoverValue(file) === coverSelection);
+    if (pendingIndex >= 0 && uploadedImages[pendingIndex]) {
+      return uploadedImages[pendingIndex];
+    }
+  }
+
+  return existingImages[0] || uploadedImages[0] || null;
+};
+
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -79,6 +123,7 @@ const AdminPage = () => {
   const [properties, setProperties] = useState(splitProperties());
   const [newProperty, setNewProperty] = useState(blankProperty);
   const [newFiles, setNewFiles] = useState([]);
+  const [newCoverSelection, setNewCoverSelection] = useState(null);
   const [newPreviews, setNewPreviews] = useState([]);
   const [editing, setEditing] = useState(null);
   const [editFiles, setEditFiles] = useState([]);
@@ -118,10 +163,47 @@ const AdminPage = () => {
   }, [newFiles]);
 
   useEffect(() => {
+    if (!newFiles.length) {
+      setNewCoverSelection(null);
+      return;
+    }
+
+    const availableSelections = newFiles.filter(isImageFile).map(getPendingCoverValue);
+    if (!availableSelections.length) {
+      setNewCoverSelection(null);
+      return;
+    }
+
+    if (!newCoverSelection || !availableSelections.includes(newCoverSelection)) {
+      setNewCoverSelection(availableSelections[0]);
+    }
+  }, [newFiles, newCoverSelection]);
+
+  useEffect(() => {
     const urls = editFiles.map((file) => URL.createObjectURL(file));
     setEditPreviews(urls);
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [editFiles]);
+
+  useEffect(() => {
+    if (!editing) return;
+
+    const availablePendingSelections = editFiles.filter(isImageFile).map(getPendingCoverValue);
+    const hasExistingSelection =
+      editing.image &&
+      !isPendingCoverValue(editing.image) &&
+      Array.isArray(editing.images) &&
+      editing.images.includes(editing.image);
+    const hasPendingSelection =
+      isPendingCoverValue(editing.image) && availablePendingSelections.includes(editing.image);
+
+    if (hasExistingSelection || hasPendingSelection) return;
+
+    const fallbackSelection = editing.images?.[0] || availablePendingSelections[0] || null;
+    if (fallbackSelection !== editing.image) {
+      setEditing((prev) => (prev ? { ...prev, image: fallbackSelection } : prev));
+    }
+  }, [editFiles, editing]);
 
   useEffect(() => {
     setProperties(splitProperties());
@@ -135,20 +217,73 @@ const AdminPage = () => {
 
   const uploadFiles = async (files) => {
     if (!files?.length) return [];
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
+    const uploadThroughServer = async (batch) => {
+      if (!batch.length) return [];
+
+      const formData = new FormData();
+      batch.forEach((file) => formData.append('files', file));
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (res.status === 413) {
+        throw new Error('Soubor je prilis velky pro server upload. Video se musi nahrat primo do Blob uloziste.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Upload selhal.');
+      return Array.isArray(data.urls) ? data.urls : [];
+    };
+
+    const uploadDirectToBlob = async (file) => {
+      try {
+        const blob = await upload(`uploads/${Date.now()}-${sanitizeFileName(file.name || 'upload')}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          multipart: file.size > MULTIPART_UPLOAD_THRESHOLD,
+        });
+        return blob.url;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+          setAuthed(false);
+          throw new Error('Relace vyprsela. Prihlaste se znovu.');
+        }
+        throw new Error(message || 'Upload selhal.');
+      }
+    };
+
+    const directEntries = [];
+    const serverEntries = [];
+    files.forEach((file, index) => {
+      if (shouldUseDirectUpload(file)) directEntries.push({ file, index });
+      else serverEntries.push({ file, index });
     });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 401) {
-      setAuthed(false);
-      throw new Error('Relace vyprsela. Prihlaste se znovu.');
+
+    const urls = new Array(files.length);
+
+    if (serverEntries.length) {
+      const serverUrls = await uploadThroughServer(serverEntries.map((entry) => entry.file));
+      serverUrls.forEach((url, index) => {
+        urls[serverEntries[index].index] = url;
+      });
     }
-    if (!res.ok) throw new Error(data?.detail || data?.error || 'Upload selhal.');
-    return Array.isArray(data.urls) ? data.urls : [];
+
+    if (directEntries.length) {
+      const directUrls = await Promise.all(
+        directEntries.map(async ({ file }) => uploadDirectToBlob(file))
+      );
+      directUrls.forEach((url, index) => {
+        urls[directEntries[index].index] = url;
+      });
+    }
+
+    return urls;
   };
 
   const loadStaticProperties = async (currentLang) => {
@@ -330,6 +465,11 @@ const AdminPage = () => {
     try {
       const uploaded = await uploadFiles(newFiles);
       const { images: uploadedImages, videos: uploadedVideos } = splitUploadedMedia(newFiles, uploaded);
+      const coverImage = resolveCoverImage({
+        coverSelection: newCoverSelection,
+        pendingFiles: newFiles,
+        uploadedImages,
+      });
       const payload = {
         ...newProperty,
         language: lang,
@@ -339,7 +479,7 @@ const AdminPage = () => {
         description: newProperty.description || '',
         images: uploadedImages,
         videos: uploadedVideos,
-        image: uploadedImages[0] || null,
+        image: coverImage,
       };
       const res = await fetch('/api/properties', {
         method: 'POST',
@@ -358,6 +498,7 @@ const AdminPage = () => {
       applyUpdate(data.property);
       setNewProperty(blankProperty);
       setNewFiles([]);
+      setNewCoverSelection(null);
       setStatus('Nemovitost ulozena.');
     } catch (err) {
       setError(err.message || 'Ulozeni selhalo.');
@@ -446,7 +587,11 @@ const AdminPage = () => {
   const removeExistingImage = (target) => {
     setEditing((prev) => {
       if (!prev) return prev;
-      return { ...prev, images: (prev.images || []).filter((img, idx) => idx !== target) };
+      const nextImages = (prev.images || []).filter((img, idx) => idx !== target);
+      const removedImage = prev.images?.[target];
+      const fallbackPendingSelection = pickFirstImageSelection(editFiles);
+      const nextImage = prev.image === removedImage ? nextImages[0] || fallbackPendingSelection || null : prev.image;
+      return { ...prev, images: nextImages, image: nextImage };
     });
   };
 
@@ -454,6 +599,45 @@ const AdminPage = () => {
     setEditing((prev) => {
       if (!prev) return prev;
       return { ...prev, videos: (prev.videos || []).filter((vid, idx) => idx !== target) };
+    });
+  };
+
+  const removePendingNewFile = (target) => {
+    const remaining = newFiles.filter((_, idx) => idx !== target);
+    setNewFiles(remaining);
+
+    const availableSelections = remaining.filter(isImageFile).map(getPendingCoverValue);
+    if (!availableSelections.length) {
+      setNewCoverSelection(null);
+      return;
+    }
+
+    if (!newCoverSelection || !availableSelections.includes(newCoverSelection)) {
+      setNewCoverSelection(availableSelections[0]);
+    }
+  };
+
+  const removePendingEditFile = (target) => {
+    const remaining = editFiles.filter((_, idx) => idx !== target);
+    setEditFiles(remaining);
+    setEditing((prev) => {
+      if (!prev) return prev;
+
+      const availablePendingSelections = remaining.filter(isImageFile).map(getPendingCoverValue);
+      const hasExistingSelection =
+        prev.image &&
+        !isPendingCoverValue(prev.image) &&
+        Array.isArray(prev.images) &&
+        prev.images.includes(prev.image);
+      const hasPendingSelection =
+        isPendingCoverValue(prev.image) && availablePendingSelections.includes(prev.image);
+
+      if (hasExistingSelection || hasPendingSelection) return prev;
+
+      return {
+        ...prev,
+        image: prev.images?.[0] || availablePendingSelections[0] || null,
+      };
     });
   };
 
@@ -471,6 +655,12 @@ const AdminPage = () => {
       const baseVideos = Array.isArray(editing.videos) ? editing.videos.filter(Boolean) : [];
       const mergedImages = uploadedImages.length ? [...baseImages, ...uploadedImages] : baseImages;
       const mergedVideos = uploadedVideos.length ? [...baseVideos, ...uploadedVideos] : baseVideos;
+      const coverImage = resolveCoverImage({
+        coverSelection: editing.image,
+        existingImages: baseImages,
+        pendingFiles: editFiles,
+        uploadedImages,
+      });
 
       const payload = {
         ...editing,
@@ -479,7 +669,7 @@ const AdminPage = () => {
         description: editing.description || '',
         images: mergedImages,
         videos: mergedVideos,
-        image: mergedImages.length ? mergedImages[0] : null,
+        image: coverImage,
       };
 
       const res = await fetch('/api/properties', {
@@ -693,9 +883,25 @@ const AdminPage = () => {
                     />
                   </label>
                   {!!newPreviews.length && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ color: '#6b7280', fontSize: 13 }}>U fotek muzes vybrat titulni obrazek a nepotrebne soubory odebrat.</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
                       {newPreviews.map((src, idx) => (
-                        <div key={src} style={thumb}>
+                        <div
+                          key={src}
+                          style={{
+                            ...thumb,
+                            position: 'relative',
+                            borderColor:
+                              isImageFile(newFiles[idx]) && newCoverSelection === getPendingCoverValue(newFiles[idx])
+                                ? '#0f2c4d'
+                                : '#e5e7eb',
+                            boxShadow:
+                              isImageFile(newFiles[idx]) && newCoverSelection === getPendingCoverValue(newFiles[idx])
+                                ? '0 0 0 2px rgba(15, 44, 77, 0.12)'
+                                : 'none',
+                          }}
+                        >
                           {newFiles[idx]?.type?.startsWith('video/') ? (
                             <video
                               src={src}
@@ -711,8 +917,26 @@ const AdminPage = () => {
                               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
                             />
                           )}
+                          <button type="button" onClick={() => removePendingNewFile(idx)} style={removeBtn}>
+                            x
+                          </button>
+                          {isImageFile(newFiles[idx]) && (
+                            <button
+                              type="button"
+                              onClick={() => setNewCoverSelection(getPendingCoverValue(newFiles[idx]))}
+                              style={{
+                                ...coverSelectBtn,
+                                background:
+                                  newCoverSelection === getPendingCoverValue(newFiles[idx]) ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
+                                color: newCoverSelection === getPendingCoverValue(newFiles[idx]) ? '#fff' : '#0f2c4d',
+                              }}
+                            >
+                              {newCoverSelection === getPendingCoverValue(newFiles[idx]) ? 'Titulka' : 'Nastavit titulku'}
+                            </button>
+                          )}
                         </div>
                       ))}
+                    </div>
                     </div>
                   )}
                   <button type="submit" disabled={savingNew} style={{ ...primaryBtn, opacity: savingNew ? 0.8 : 1 }}>
@@ -898,14 +1122,39 @@ const AdminPage = () => {
 
                     <div style={{ display: 'grid', gap: 6 }}>
                       <div style={{ fontWeight: 700 }}>Aktualni fotky</div>
+                      <div style={{ color: '#6b7280', fontSize: 13 }}>Kliknutim nastavis, ktera fotka bude titulni.</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
                         {(editing.images || []).map((src, idx) => (
-                          <div key={src + idx} style={{ position: 'relative' }}>
+                          <div
+                            key={src + idx}
+                            style={{
+                              position: 'relative',
+                              borderRadius: 10,
+                              boxShadow: editing.image === src ? '0 0 0 2px rgba(15, 44, 77, 0.12)' : 'none',
+                            }}
+                          >
                             <img
                               src={src}
                               alt={`Foto ${idx + 1}`}
-                              style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 10, border: '1px solid #e5e7eb' }}
+                              style={{
+                                width: '100%',
+                                height: 90,
+                                objectFit: 'cover',
+                                borderRadius: 10,
+                                border: editing.image === src ? '1px solid #0f2c4d' : '1px solid #e5e7eb',
+                              }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setEditing((prev) => (prev ? { ...prev, image: src } : prev))}
+                              style={{
+                                ...coverSelectBtn,
+                                background: editing.image === src ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
+                                color: editing.image === src ? '#fff' : '#0f2c4d',
+                              }}
+                            >
+                              {editing.image === src ? 'Titulka' : 'Nastavit titulku'}
+                            </button>
                             <button type="button" onClick={() => removeExistingImage(idx)} style={removeBtn}>
                               x
                             </button>
@@ -953,9 +1202,25 @@ const AdminPage = () => {
                       />
                     </label>
                     {!!editPreviews.length && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ color: '#6b7280', fontSize: 13 }}>I u novych fotek muzes rovnou zvolit titulni obrazek nebo soubor odebrat.</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
                         {editPreviews.map((src, idx) => (
-                          <div key={src} style={thumb}>
+                          <div
+                            key={src}
+                            style={{
+                              ...thumb,
+                              position: 'relative',
+                              borderColor:
+                                isImageFile(editFiles[idx]) && editing.image === getPendingCoverValue(editFiles[idx])
+                                  ? '#0f2c4d'
+                                  : '#e5e7eb',
+                              boxShadow:
+                                isImageFile(editFiles[idx]) && editing.image === getPendingCoverValue(editFiles[idx])
+                                  ? '0 0 0 2px rgba(15, 44, 77, 0.12)'
+                                  : 'none',
+                            }}
+                          >
                             {editFiles[idx]?.type?.startsWith('video/') ? (
                               <video
                                 src={src}
@@ -971,8 +1236,25 @@ const AdminPage = () => {
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
                               />
                             )}
+                            <button type="button" onClick={() => removePendingEditFile(idx)} style={removeBtn}>
+                              x
+                            </button>
+                            {isImageFile(editFiles[idx]) && (
+                              <button
+                                type="button"
+                                onClick={() => setEditing((prev) => (prev ? { ...prev, image: getPendingCoverValue(editFiles[idx]) } : prev))}
+                                style={{
+                                  ...coverSelectBtn,
+                                  background: editing.image === getPendingCoverValue(editFiles[idx]) ? '#0f2c4d' : 'rgba(255,255,255,0.92)',
+                                  color: editing.image === getPendingCoverValue(editFiles[idx]) ? '#fff' : '#0f2c4d',
+                                }}
+                              >
+                                {editing.image === getPendingCoverValue(editFiles[idx]) ? 'Titulka' : 'Nastavit titulku'}
+                              </button>
+                            )}
                           </div>
                         ))}
+                      </div>
                       </div>
                     )}
 
@@ -1170,6 +1452,18 @@ const removeBtn = {
   borderRadius: 20,
   width: 22,
   height: 22,
+  cursor: 'pointer',
+};
+
+const coverSelectBtn = {
+  position: 'absolute',
+  left: 6,
+  bottom: 6,
+  border: '1px solid rgba(15,28,45,0.15)',
+  borderRadius: 999,
+  padding: '4px 8px',
+  fontSize: 11,
+  fontWeight: 700,
   cursor: 'pointer',
 };
 
