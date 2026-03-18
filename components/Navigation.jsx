@@ -25,17 +25,18 @@ const Navigation = ({
 
       <div className="nav-links">
         {navOrder.map((section) => (
-          <button key={section} className="nav-link" onClick={() => onNavigate(section)}>
+          <button key={section} type="button" className="nav-link" onClick={() => onNavigate(section)}>
             {t.nav[section]}
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div className="nav-actions">
         <div className="lang-switch">
           {['cz', 'en', 'de'].map((lang) => (
             <button
               key={lang}
+              type="button"
               className={`lang-btn ${language === lang ? 'active' : ''}`}
               onClick={() => onLanguageChange(lang)}
             >
@@ -44,7 +45,8 @@ const Navigation = ({
           ))}
         </div>
         <button
-          className="btn-primary"
+          type="button"
+          className="btn-primary nav-cta"
           onClick={() => onNavigate('contact')}
           style={{
             background: 'linear-gradient(135deg, #0b2338, #0f7082 55%, #1fbac6 80%)',
@@ -55,7 +57,13 @@ const Navigation = ({
           <Phone size={16} />
           {t.hero.cta1}
         </button>
-        <button className="menu-toggle" onClick={onToggleMobile} aria-label="Toggle menu">
+        <button
+          type="button"
+          className="menu-toggle"
+          onClick={onToggleMobile}
+          aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
+        >
           {mobileOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       </div>
@@ -66,6 +74,7 @@ const Navigation = ({
         {navOrder.map((section) => (
           <button
             key={section}
+            type="button"
             className="nav-link"
             style={{ textAlign: 'left', width: '100%' }}
             onClick={() => onNavigate(section)}
@@ -77,6 +86,7 @@ const Navigation = ({
           {['cz', 'en', 'de'].map((lang) => (
             <button
               key={lang}
+              type="button"
               className={`lang-btn ${language === lang ? 'active' : ''}`}
               onClick={() => onLanguageChange(lang)}
             >

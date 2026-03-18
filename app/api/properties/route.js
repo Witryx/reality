@@ -3,6 +3,7 @@ import {
   createProperty,
   deleteProperty,
   fetchProperties,
+  reorderProperties,
   updateProperty,
 } from '../../../lib/properties';
 import { requireAdminSession } from '../../../lib/adminAuth';
@@ -10,6 +11,38 @@ import { requireAdminSession } from '../../../lib/adminAuth';
 export const runtime = 'nodejs';
 
 const requiredFields = ['name', 'location', 'price'];
+
+const normalizeOptionalNumber = (value) => {
+  if (value === undefined || value === null) return { value: null };
+
+  const normalized = String(value).trim();
+  if (!normalized) return { value: null };
+
+  const asNumber = Number(normalized);
+  if (Number.isNaN(asNumber)) {
+    return { error: true };
+  }
+
+  return { value: String(asNumber) };
+};
+
+const normalizeOptionalText = (value, maxLength = 50) => {
+  if (value === undefined || value === null) return { value: null };
+
+  const normalized = String(value).trim();
+  return { value: normalized ? normalized.slice(0, maxLength) : null };
+};
+
+const normalizeOptionalInteger = (value) => {
+  if (value === undefined || value === null || value === '') return { value: null };
+
+  const normalized = Number(value);
+  if (!Number.isInteger(normalized) || normalized <= 0) {
+    return { error: true };
+  }
+
+  return { value: normalized };
+};
 
 const validatePayload = (payload = {}) => {
   const errors = [];
@@ -24,20 +57,15 @@ const validatePayload = (payload = {}) => {
     }
   });
 
-  ['sqm', 'rooms'].forEach((field) => {
-    const value = payload?.[field];
-    if (value === undefined || value === null || value === '') {
-      normalized[field] = null;
-      return;
-    }
+  const sqm = normalizeOptionalNumber(payload?.sqm);
+  if (sqm.error) errors.push('sqm');
+  normalized.sqm = sqm.value;
 
-    const asNumber = Number(value);
-    if (Number.isNaN(asNumber)) {
-      errors.push(field);
-    } else {
-      normalized[field] = String(asNumber);
-    }
-  });
+  normalized.rooms = normalizeOptionalText(payload?.rooms).value;
+
+  const sortOrder = normalizeOptionalInteger(payload?.sortOrder);
+  if (sortOrder.error) errors.push('sortOrder');
+  normalized.sortOrder = sortOrder.value;
 
   normalized.tag = typeof payload?.tag === 'string' ? payload.tag.trim().slice(0, 50) : null;
   normalized.language =
@@ -131,6 +159,34 @@ export async function PATCH(request) {
   }
 
   const { id, sold, ...updates } = payload || {};
+  const orderUpdates = Array.isArray(payload?.orderUpdates) ? payload.orderUpdates : null;
+  const language = payload?.language ?? payload?.lang ?? null;
+
+  if (orderUpdates) {
+    try {
+      const properties = await reorderProperties(orderUpdates, language);
+      return NextResponse.json({ properties });
+    } catch (error) {
+      console.error('PATCH /api/properties reorder', error);
+      if (
+        error.message &&
+        ['No order updates provided.', 'Invalid property order payload.', 'Property not found.'].includes(error.message)
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      if (error.message?.includes('Missing Postgres connection string')) {
+        return NextResponse.json(
+          { error: 'Missing database connection (POSTGRES_URL).' },
+          { status: 503 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to reorder properties.', detail: error.message },
+        { status: 500 }
+      );
+    }
+  }
 
   if (!id) {
     return NextResponse.json({ error: 'Missing property ID.' }, { status: 400 });

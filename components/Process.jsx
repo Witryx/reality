@@ -19,7 +19,7 @@ const Process = ({ t }) => (
         width: '420px',
         height: '420px',
         background: 'radial-gradient(circle, rgba(31,186,198,0.12) 0%, transparent 60%), radial-gradient(circle at 40% 30%, rgba(217,179,106,0.14), transparent 70%)',
-        filter: 'blur(8px)',
+        opacity: 0.75,
       }}
     />
     <div className="container">

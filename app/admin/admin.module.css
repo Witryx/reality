@@ -466,6 +466,103 @@
   border: 1px solid rgba(31, 186, 198, 0.2);
 }
 
+.toastViewport {
+  position: fixed;
+  right: clamp(14px, 2vw, 24px);
+  bottom: clamp(14px, 2vw, 24px);
+  z-index: 140;
+  width: min(380px, calc(100vw - 28px));
+  display: grid;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 15px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(11, 35, 56, 0.12);
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(255, 255, 255, 0.24), transparent 52%),
+    linear-gradient(165deg, rgba(255, 252, 245, 0.96), rgba(246, 236, 219, 0.92));
+  box-shadow:
+    0 22px 42px rgba(7, 23, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+  animation: toastIn 0.24s ease;
+}
+
+.toastSuccess {
+  border-color: rgba(38, 144, 88, 0.24);
+}
+
+.toastError {
+  border-color: rgba(212, 73, 73, 0.26);
+}
+
+.toastIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(7, 23, 40, 0.14);
+}
+
+.toastSuccess .toastIcon {
+  background: linear-gradient(135deg, #1a6e39, #33c467);
+}
+
+.toastError .toastIcon {
+  background: linear-gradient(135deg, #892121, #d44949);
+}
+
+.toastBody {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.toastLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #8c6726;
+}
+
+.toastMessage {
+  color: #0b2338;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.toastClose {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(11, 35, 56, 0.07);
+  color: rgba(11, 35, 56, 0.7);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.toastClose:hover {
+  background: rgba(11, 35, 56, 0.12);
+  color: #0b2338;
+  transform: translateY(-1px);
+}
+
 .dashboardStack {
   display: grid;
   gap: 22px;
@@ -969,6 +1066,38 @@
   color: rgba(11, 35, 56, 0.84);
 }
 
+.orderRow,
+.orderActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.orderRow {
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(217, 179, 106, 0.28);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.orderText {
+  color: rgba(11, 35, 56, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.orderActions {
+  justify-content: flex-end;
+}
+
+.orderButton {
+  min-width: 48px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 .emptyState,
 .emptyInset {
   display: grid;
@@ -1097,6 +1226,17 @@
   }
 }
 
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate3d(20px, 14px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 @media (max-width: 1180px) {
   .loginLayout,
   .heroCard,
@@ -1167,6 +1307,7 @@
 
   .heroActions,
   .propertyActions,
+  .orderRow,
   .modalActions,
   .pagination {
     flex-direction: column;
@@ -1174,8 +1315,13 @@
 
   .heroActions .button,
   .propertyActions .button,
+  .orderActions .button,
   .modalActions .button,
   .paginationButton {
+    width: 100%;
+  }
+
+  .orderActions {
     width: 100%;
   }
 
@@ -1197,6 +1343,13 @@
 
   .modalOverlay {
     padding: 10px;
+  }
+
+  .toastViewport {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
   }
 }
 

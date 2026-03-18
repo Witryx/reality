@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { upload } from '@vercel/blob/client';
 import {
+  ArrowDown,
   ArrowLeftRight,
+  ArrowUp,
   Building2,
+  ChevronsUp,
   CheckCircle2,
   CircleAlert,
   Film,
@@ -27,9 +30,12 @@ import { globalStyles } from '../../styles/globalStyles';
 const ADMIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_ADMIN === '1';
 const languages = ['cz', 'en', 'de'];
 const blankProperty = { name: '', location: '', price: '', sqm: '', rooms: '', tag: '', description: '' };
-const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // Vercel request payload limit is lower than typical video sizes.
+const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // Local fallback uploads stay on the server only for smaller files.
 const MULTIPART_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
+const SERVER_UPLOAD_BATCH_LIMIT = 3 * 1024 * 1024;
+const SERVER_UPLOAD_BATCH_HEADROOM = 128 * 1024;
 const PROPERTY_PAGE_SIZE = 6;
+const TOAST_DURATION = 4200;
 
 const sanitizeFileName = (name = 'upload') =>
   String(name)
@@ -37,11 +43,42 @@ const sanitizeFileName = (name = 'upload') =>
     .replace(/-+/g, '-')
     .slice(0, 120);
 
+const isLocalUploadHost = () => {
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+};
+
 const shouldUseDirectUpload = (file) => {
   if (typeof window === 'undefined') return false;
-  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  if (isLocalHost) return false;
+  if (!isLocalUploadHost()) return true;
   return file?.type?.startsWith('video/') || file?.size > DIRECT_UPLOAD_THRESHOLD;
+};
+
+const splitServerUploadEntries = (entries = []) => {
+  const batches = [];
+  let currentBatch = [];
+  let currentBatchSize = 0;
+
+  entries.forEach((entry) => {
+    const estimatedSize = (entry?.file?.size || 0) + SERVER_UPLOAD_BATCH_HEADROOM;
+    const exceedsBatchLimit =
+      currentBatch.length > 0 && currentBatchSize + estimatedSize > SERVER_UPLOAD_BATCH_LIMIT;
+
+    if (exceedsBatchLimit) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentBatchSize = 0;
+    }
+
+    currentBatch.push(entry);
+    currentBatchSize += estimatedSize;
+  });
+
+  if (currentBatch.length) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
 };
 
 const splitProperties = (list = []) => {
@@ -101,11 +138,29 @@ const splitUploadedMedia = (files = [], urls = []) => {
 };
 
 const toNumberOrNull = (value) => {
-  const num = Number(value);
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  const num = Number(normalized);
   return Number.isFinite(num) ? num : null;
 };
 
+const toTextOrNull = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
 const toInputValue = (value) => (value == null ? '' : String(value));
+const getPropertyKey = (prop = {}) => (prop?.id ? `id-${prop.id}` : `name-${prop?.name}|${prop?.location}`);
+
+const moveItem = (list = [], fromIndex, toIndex) => {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return [...list];
+  const next = [...list];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+};
 
 const readJsonSafe = async (res) => {
   try {
@@ -184,11 +239,14 @@ const AdminPage = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [orderingKey, setOrderingKey] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [toasts, setToasts] = useState([]);
   const [listingView, setListingView] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const fallbackSplit = useMemo(() => splitProperties(), []);
+  const toastKeyRef = useRef('');
 
   useEffect(() => {
     const checkSession = async () => {
@@ -292,7 +350,7 @@ const AdminPage = () => {
         throw new Error('Relace vyprsela. Prihlaste se znovu.');
       }
       if (res.status === 413) {
-        throw new Error('Soubor je prilis velky pro server upload. Video se musi nahrat primo do Blob uloziste.');
+        throw new Error('Davka souboru je prilis velka pro server upload. Zkuste upload zopakovat, v produkci se media nahravaji primo do Blob uloziste.');
       }
       if (!res.ok) throw new Error(data?.detail || data?.error || 'Upload selhal.');
       return Array.isArray(data.urls) ? data.urls : [];
@@ -326,10 +384,14 @@ const AdminPage = () => {
     const urls = new Array(files.length);
 
     if (serverEntries.length) {
-      const serverUrls = await uploadThroughServer(serverEntries.map((entry) => entry.file));
-      serverUrls.forEach((url, index) => {
-        urls[serverEntries[index].index] = url;
-      });
+      const serverBatches = splitServerUploadEntries(serverEntries);
+
+      for (const batch of serverBatches) {
+        const serverUrls = await uploadThroughServer(batch.map((entry) => entry.file));
+        serverUrls.forEach((url, index) => {
+          urls[batch[index].index] = url;
+        });
+      }
     }
 
     if (directEntries.length) {
@@ -382,15 +444,19 @@ const AdminPage = () => {
         if (!unique.has(key)) unique.set(key, item);
       });
       const combined = Array.from(unique.values());
-      setProperties(combined.length ? splitProperties(combined) : fallbackSplit);
+      const nextProperties = combined.length ? splitProperties(combined) : fallbackSplit;
+      setProperties(nextProperties);
+      return combined;
     } catch (err) {
+      setError(err.message || 'Nepodarilo se nacist data.');
       const staticList = await loadStaticProperties(currentLang);
       if (staticList.length) {
         setProperties(splitProperties(staticList));
+        return staticList;
       } else {
         setProperties(fallbackSplit);
+        return [];
       }
-      setError(err.message || 'Nepodarilo se nacist data.');
     } finally {
       setLoading(false);
     }
@@ -401,7 +467,8 @@ const AdminPage = () => {
       ...prop,
       language: lang,
       sqm: toNumberOrNull(prop.sqm),
-      rooms: toNumberOrNull(prop.rooms),
+      rooms: toTextOrNull(prop.rooms),
+      sortOrder: prop.sortOrder ?? null,
       tag: prop.tag || 'Nova',
       description: prop.description || prop.longDescription || '',
       images: Array.isArray(prop.images) ? prop.images : toImages(prop.images),
@@ -446,21 +513,90 @@ const AdminPage = () => {
     return createFromFallback(prop, Boolean(prop?.sold));
   };
 
+  const ensurePersistedProperties = async (list = []) => {
+    const persisted = [];
+    for (const item of list) {
+      persisted.push(await ensurePersistedProperty(item));
+    }
+    return persisted;
+  };
+
   const applyUpdate = (updated) => {
     if (!updated) return;
     setProperties((prev) => {
-      const merged = [];
-      const seen = new Set();
-      const all = [updated, ...(prev.active || []), ...(prev.sold || [])];
-      all.forEach((item) => {
-        const key = item?.id ? `id-${item.id}` : `name-${item?.name}`;
-        if (!seen.has(key)) {
-          merged.push(item);
-          seen.add(key);
-        }
-      });
+      const all = [...(prev.active || []), ...(prev.sold || [])];
+      const updatedKey = getPropertyKey(updated);
+      const existingIndex = all.findIndex((item) => getPropertyKey(item) === updatedKey);
+      const merged = [...all];
+
+      if (existingIndex >= 0) {
+        merged[existingIndex] = updated;
+      } else {
+        merged.unshift(updated);
+      }
+
       return splitProperties(merged);
     });
+  };
+
+  const reorderProperty = async (prop, direction) => {
+    const sourceBucket = prop?.sold ? properties.sold || [] : properties.active || [];
+    if (!sourceBucket.length) return;
+
+    const itemKey = getPropertyKey(prop);
+    setStatus('');
+    setError('');
+    setOrderingKey(itemKey);
+
+    try {
+      const persistedBucket = await ensurePersistedProperties(sourceBucket);
+      const currentIndex = persistedBucket.findIndex((item) => getPropertyKey(item) === itemKey);
+
+      if (currentIndex < 0) {
+        throw new Error('Nemovitost pro zmenu poradi nebyla nalezena.');
+      }
+
+      const targetIndex =
+        direction === 'top'
+          ? 0
+          : direction === 'up'
+            ? Math.max(0, currentIndex - 1)
+            : direction === 'down'
+              ? Math.min(persistedBucket.length - 1, currentIndex + 1)
+              : currentIndex;
+
+      if (targetIndex === currentIndex) return;
+
+      const nextBucket = moveItem(persistedBucket, currentIndex, targetIndex);
+      const orderUpdates = nextBucket.map((item, index) => ({
+        id: item.id,
+        sortOrder: index + 1,
+      }));
+
+      const res = await fetch('/api/properties', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ language: lang, orderUpdates }),
+      });
+      const data = await readJsonSafe(res);
+
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Zmena poradi selhala.');
+
+      await loadProperties(lang);
+      if (direction === 'top') {
+        setCurrentPage(1);
+      }
+      setStatus(direction === 'top' ? 'Nemovitost je presunuta na zacatek.' : 'Poradi nemovitosti bylo upraveno.');
+    } catch (err) {
+      setError(err.message || 'Zmena poradi selhala.');
+    } finally {
+      setOrderingKey(null);
+    }
   };
 
   const handleLogin = async (e) => {
@@ -529,7 +665,7 @@ const AdminPage = () => {
         ...newProperty,
         language: lang,
         sqm: toNumberOrNull(newProperty.sqm),
-        rooms: toNumberOrNull(newProperty.rooms),
+        rooms: toTextOrNull(newProperty.rooms),
         tag: newProperty.tag || 'Nova',
         description: newProperty.description || '',
         images: uploadedImages,
@@ -565,7 +701,7 @@ const AdminPage = () => {
   const toggleSold = async (prop, soldState) => {
     setStatus('');
     setError('');
-    setTogglingId(prop.id || prop.name);
+    setTogglingId(getPropertyKey(prop));
     try {
       const ensured = await ensurePersistedProperty(prop);
       const res = await fetch('/api/properties', {
@@ -592,7 +728,7 @@ const AdminPage = () => {
   const removeProperty = async (prop) => {
     setStatus('');
     setError('');
-    setDeletingId(prop.id || prop.name);
+    setDeletingId(getPropertyKey(prop));
     try {
       const ensured = await ensurePersistedProperty(prop);
       const res = await fetch('/api/properties', {
@@ -714,7 +850,7 @@ const AdminPage = () => {
         id: editing.id,
         language: lang,
         sqm: toNumberOrNull(editing.sqm),
-        rooms: toNumberOrNull(editing.rooms),
+        rooms: toTextOrNull(editing.rooms),
         tag: editing.tag || 'Nova',
         description: editing.description || '',
         images: mergedImages,
@@ -775,6 +911,51 @@ const AdminPage = () => {
     }
   }, [currentPage, safeCurrentPage]);
 
+  useEffect(() => {
+    if (!authed) {
+      toastKeyRef.current = '';
+      setToasts([]);
+      return;
+    }
+
+    const tone = error ? 'error' : status ? 'success' : null;
+    const message = error || status;
+
+    if (!message || !tone) {
+      toastKeyRef.current = '';
+      return;
+    }
+
+    const nextToastKey = `${tone}:${message}`;
+    if (toastKeyRef.current === nextToastKey) return;
+
+    toastKeyRef.current = nextToastKey;
+    setToasts((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        tone,
+        message,
+        expiresAt: Date.now() + TOAST_DURATION,
+      },
+    ]);
+  }, [authed, error, status]);
+
+  useEffect(() => {
+    if (!toasts.length) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      const now = Date.now();
+      setToasts((prev) => prev.filter((toast) => toast.expiresAt > now));
+    }, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [toasts.length]);
+
+  const dismissToast = (toastId) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== toastId));
+  };
+
   const renderFeedback = (message = feedbackMessage, tone = feedbackTone) => {
     if (!message || !tone) return null;
 
@@ -830,11 +1011,16 @@ const AdminPage = () => {
   };
 
   const renderPropertyCard = (prop, soldView = false) => {
-    const itemKey = prop.id || prop.name;
+    const itemKey = getPropertyKey(prop);
     const images = toImages(prop.images);
     const videos = toVideos(prop.videos);
     const cover = prop.image || images[0];
     const mediaCount = images.length + videos.length;
+    const bucket = soldView ? properties.sold || [] : properties.active || [];
+    const position = bucket.findIndex((item) => getPropertyKey(item) === itemKey);
+    const isFirst = position <= 0;
+    const isLast = position === bucket.length - 1;
+    const isOrdering = orderingKey === itemKey;
 
     return (
       <article key={itemKey} className={cx(styles.propertyCard, soldView && styles.propertyCardSold)}>
@@ -877,6 +1063,7 @@ const AdminPage = () => {
           <div className={styles.propertyMeta}>
             {prop.sqm ? <span className={styles.metaChip}>{prop.sqm} m2</span> : null}
             {prop.rooms ? <span className={styles.metaChip}>{prop.rooms} pokoje</span> : null}
+            {position >= 0 ? <span className={styles.metaChip}>Pozice {position + 1}</span> : null}
             {videos.length ? (
               <span className={styles.metaChip}>
                 <Film size={14} />
@@ -890,6 +1077,43 @@ const AdminPage = () => {
               </span>
             ) : null}
           </div>
+
+          {bucket.length > 1 && position >= 0 ? (
+            <div className={styles.orderRow}>
+              <span className={styles.orderText}>
+                Poradi ve skupine: {position + 1} / {bucket.length}
+              </span>
+              <div className={styles.orderActions}>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.orderButton)}
+                  onClick={() => reorderProperty(prop, 'top')}
+                  disabled={isOrdering || isFirst}
+                  title="Presunout na zacatek"
+                >
+                  {isOrdering ? <Loader2 size={16} className={styles.spin} /> : <ChevronsUp size={16} />}
+                </button>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.orderButton)}
+                  onClick={() => reorderProperty(prop, 'up')}
+                  disabled={isOrdering || isFirst}
+                  title="Posunout vyse"
+                >
+                  <ArrowUp size={16} />
+                </button>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.orderButton)}
+                  onClick={() => reorderProperty(prop, 'down')}
+                  disabled={isOrdering || isLast}
+                  title="Posunout nize"
+                >
+                  <ArrowDown size={16} />
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className={styles.propertyActions}>
             <button
@@ -1158,8 +1382,6 @@ const AdminPage = () => {
             </div>
           </div>
         </header>
-
-        {renderFeedback()}
 
         <div className={styles.dashboardGrid}>
           <section className={cx(styles.surface, styles.sectionCard, styles.editorCard)}>
@@ -1445,6 +1667,44 @@ const AdminPage = () => {
       <div className={styles.orbOne} />
       <div className={styles.orbTwo} />
       <div className={styles.orbThree} />
+
+      {authed && toasts.length ? (
+        <div className={styles.toastViewport} aria-live="polite" aria-atomic="true">
+          {toasts.map((toast) => {
+            const icon =
+              toast.tone === 'error' ? (
+                <CircleAlert size={18} />
+              ) : (
+                <CheckCircle2 size={18} />
+              );
+
+            return (
+              <div
+                key={toast.id}
+                className={cx(
+                  styles.toast,
+                  toast.tone === 'error' ? styles.toastError : styles.toastSuccess
+                )}
+                role={toast.tone === 'error' ? 'alert' : 'status'}
+              >
+                <div className={styles.toastIcon}>{icon}</div>
+                <div className={styles.toastBody}>
+                  <div className={styles.toastLabel}>{toast.tone === 'error' ? 'Chyba' : 'Hotovo'}</div>
+                  <div className={styles.toastMessage}>{toast.message}</div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.toastClose}
+                  onClick={() => dismissToast(toast.id)}
+                  aria-label="Zavrit oznameni"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className={cx(styles.frame, isLoginScreen && styles.frameLogin)}>{pageContent}</div>
 

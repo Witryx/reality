@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Navigation from './components/Navigation';
 import Hero from './components/Hero';
 import Properties from './components/Properties';
@@ -37,34 +37,41 @@ const EgyptRealEstate = () => {
 
   const t = useMemo(() => translations[language], [language]);
 
-  const smoothScrollTo = (targetY, duration = 700) => {
-    const startY = window.scrollY || window.pageYOffset;
-    const delta = targetY - startY;
-    const startTime = performance.now();
+  useEffect(() => {
+    document.body.classList.toggle('nav-open', mobileOpen);
+    return () => document.body.classList.remove('nav-open');
+  }, [mobileOpen]);
 
-    const easeOutQuad = (t) => t * (2 - t);
+  const handleLanguageChange = useCallback((nextLanguage) => {
+    setLanguage(nextLanguage);
+    setMobileOpen(false);
+  }, []);
 
-    const step = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutQuad(progress);
-      window.scrollTo(0, startY + delta * eased);
-      if (progress < 1) requestAnimationFrame(step);
+  const scrollToSection = useCallback((id) => {
+    const performScroll = () => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const headerEl = document.querySelector('.nav-shell');
+      const headerHeight = Math.ceil(headerEl?.getBoundingClientRect().height || 88);
+      const targetY = el.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+
+      window.scrollTo({
+        top: Math.max(targetY, 0),
+        behavior: 'smooth',
+      });
     };
 
-    requestAnimationFrame(step);
-  };
-
-  const scrollToSection = (id) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      const offset = 80; // header height
-      const targetY = rect.top + window.scrollY - offset;
-      smoothScrollTo(targetY, 800);
+    if (mobileOpen) {
+      setMobileOpen(false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(performScroll);
+      });
+      return;
     }
-    setMobileOpen(false);
-  };
+
+    performScroll();
+  }, [mobileOpen]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -110,7 +117,7 @@ const EgyptRealEstate = () => {
       <Navigation
         t={t}
         language={language}
-        onLanguageChange={setLanguage}
+        onLanguageChange={handleLanguageChange}
         onNavigate={scrollToSection}
         mobileOpen={mobileOpen}
         onToggleMobile={() => setMobileOpen((prev) => !prev)}
