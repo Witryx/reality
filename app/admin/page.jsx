@@ -220,6 +220,27 @@ const normalizeEditableProperty = (prop = {}) => {
   };
 };
 
+const getUniquePropertyMergeKey = (prop = {}) =>
+  prop?.id ? `id:${prop.id}` : `${String(prop?.name || '').trim()}|${String(prop?.location || '').trim()}|${String(prop?.language || 'cz').trim()}`;
+
+const getDisplayPropertyName = (prop = {}) => {
+  const value = String(prop?.name || '').trim();
+  if (value) return value;
+  return prop?.draft ? 'Koncept prekladu' : 'Bez nazvu';
+};
+
+const getDisplayPropertyLocation = (prop = {}) => {
+  const value = String(prop?.location || '').trim();
+  if (value) return value;
+  return prop?.draft ? 'Doplnit lokaci' : 'Lokace chybi';
+};
+
+const getDisplayPropertyPrice = (prop = {}) => {
+  const value = String(prop?.price || '').trim();
+  if (value) return value;
+  return prop?.draft ? 'Doplnit cenu' : 'Cena chybi';
+};
+
 const AdminPage = () => {
   const [authed, setAuthed] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -239,6 +260,7 @@ const AdminPage = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [cloningKey, setCloningKey] = useState(null);
   const [orderingKey, setOrderingKey] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -416,7 +438,9 @@ const AdminPage = () => {
         : Array.isArray(staticData?.properties)
           ? staticData.properties
           : [];
-      return staticList.filter((item) => !item?.language || item.language === currentLang);
+      return staticList.filter(
+        (item) => !item?.draft && (!item?.language || item.language === currentLang)
+      );
     } catch {
       return [];
     }
@@ -426,7 +450,7 @@ const AdminPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/properties?lang=${currentLang}`, {
+      const res = await fetch(`/api/properties?lang=${currentLang}&includeDrafts=1`, {
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
@@ -440,7 +464,7 @@ const AdminPage = () => {
       const unique = new Map();
       [...apiList, ...staticList].forEach((item) => {
         if (!item) return;
-        const key = `${String(item.name || '').trim()}|${String(item.location || '').trim()}`;
+        const key = getUniquePropertyMergeKey(item);
         if (!unique.has(key)) unique.set(key, item);
       });
       const combined = Array.from(unique.values());
@@ -767,6 +791,42 @@ const AdminPage = () => {
     }
   };
 
+  const createTranslationDraft = async (prop, targetLanguage) => {
+    const itemKey = `${getPropertyKey(prop)}:${targetLanguage}`;
+    setStatus('');
+    setError('');
+    setCloningKey(itemKey);
+
+    try {
+      const ensured = await ensurePersistedProperty(prop);
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          cloneFromId: ensured.id,
+          targetLanguage,
+        }),
+      });
+      const data = await readJsonSafe(res);
+      if (res.status === 401) {
+        setAuthed(false);
+        throw new Error('Relace vyprsela. Prihlaste se znovu.');
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'Vytvoreni konceptu selhalo.');
+
+      setStatus(
+        data?.created
+          ? `Vytvoren ${targetLanguage.toUpperCase()} koncept.`
+          : `${targetLanguage.toUpperCase()} koncept uz existuje.`
+      );
+    } catch (err) {
+      setError(err.message || 'Vytvoreni konceptu selhalo.');
+    } finally {
+      setCloningKey(null);
+    }
+  };
+
   const removeExistingImage = (target) => {
     setEditing((prev) => {
       if (!prev) return prev;
@@ -844,18 +904,28 @@ const AdminPage = () => {
         pendingFiles: editFiles,
         uploadedImages,
       });
+      const hasRequiredListingFields =
+        Boolean(String(editing.name || '').trim()) &&
+        Boolean(String(editing.location || '').trim()) &&
+        Boolean(String(editing.price || '').trim());
+      const nextDraft = editing.draft ? !hasRequiredListingFields : false;
 
       const payload = {
-        ...editing,
         id: editing.id,
+        name: editing.name ?? '',
+        location: editing.location ?? '',
+        price: editing.price ?? '',
         language: lang,
         sqm: toNumberOrNull(editing.sqm),
         rooms: toTextOrNull(editing.rooms),
-        tag: editing.tag || 'Nova',
+        tag: editing.tag || (nextDraft ? null : 'Nova'),
         description: editing.description || '',
         images: mergedImages,
         videos: mergedVideos,
         image: coverImage,
+        sold: Boolean(editing.sold),
+        draft: nextDraft,
+        sourcePropertyId: editing.sourcePropertyId ?? null,
       };
 
       const res = await fetch('/api/properties', {
@@ -1015,19 +1085,25 @@ const AdminPage = () => {
     const images = toImages(prop.images);
     const videos = toVideos(prop.videos);
     const cover = prop.image || images[0];
+    const title = getDisplayPropertyName(prop);
+    const locationLabel = getDisplayPropertyLocation(prop);
+    const priceLabel = getDisplayPropertyPrice(prop);
     const mediaCount = images.length + videos.length;
     const bucket = soldView ? properties.sold || [] : properties.active || [];
     const position = bucket.findIndex((item) => getPropertyKey(item) === itemKey);
     const isFirst = position <= 0;
     const isLast = position === bucket.length - 1;
     const isOrdering = orderingKey === itemKey;
+    const isCzSource = lang === 'cz' && String(prop.language || 'cz').toLowerCase() === 'cz' && !prop.draft;
+    const isCloningEn = cloningKey === `${itemKey}:en`;
+    const isCloningDe = cloningKey === `${itemKey}:de`;
 
     return (
       <article key={itemKey} className={cx(styles.propertyCard, soldView && styles.propertyCardSold)}>
         <div className={styles.propertyVisual}>
           {cover ? (
             <>
-              <img src={cover} alt={prop.name} className={styles.propertyImage} />
+              <img src={cover} alt={title} className={styles.propertyImage} />
               <div className={styles.propertyOverlay} />
             </>
           ) : (
@@ -1044,6 +1120,7 @@ const AdminPage = () => {
           >
             {soldView ? 'Prodano' : 'Aktivni'}
           </span>
+          {prop.draft ? <span className={styles.draftBadge}>Koncept</span> : null}
           {prop.tag ? <span className={styles.tagBadge}>{prop.tag}</span> : null}
           <span className={styles.mediaBadge}>
             <Images size={14} />
@@ -1054,13 +1131,18 @@ const AdminPage = () => {
         <div className={styles.propertyBody}>
           <div className={styles.propertyHeader}>
             <div>
-              <h3 className={styles.propertyTitle}>{prop.name}</h3>
-              <p className={styles.propertyLocation}>{prop.location}</p>
+              <h3 className={styles.propertyTitle}>{title}</h3>
+              <p className={cx(styles.propertyLocation, prop.draft && !String(prop.location || '').trim() && styles.propertyMuted)}>
+                {locationLabel}
+              </p>
             </div>
-            <div className={styles.propertyPrice}>{prop.price}</div>
+            <div className={cx(styles.propertyPrice, prop.draft && !String(prop.price || '').trim() && styles.propertyPriceMuted)}>
+              {priceLabel}
+            </div>
           </div>
 
           <div className={styles.propertyMeta}>
+            {prop.draft ? <span className={styles.metaChip}>Koncept prekladu</span> : null}
             {prop.sqm ? <span className={styles.metaChip}>{prop.sqm} m2</span> : null}
             {prop.rooms ? <span className={styles.metaChip}>{prop.rooms} pokoje</span> : null}
             {position >= 0 ? <span className={styles.metaChip}>Pozice {position + 1}</span> : null}
@@ -1110,6 +1192,32 @@ const AdminPage = () => {
                   title="Posunout nize"
                 >
                   <ArrowDown size={16} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {isCzSource ? (
+            <div className={styles.translationRow}>
+              <span className={styles.translationText}>Vytvorit koncept prekladu z CZ</span>
+              <div className={styles.translationActions}>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.translationButton)}
+                  onClick={() => createTranslationDraft(prop, 'en')}
+                  disabled={isCloningEn}
+                >
+                  {isCloningEn ? <Loader2 size={16} className={styles.spin} /> : <Globe2 size={16} />}
+                  EN koncept
+                </button>
+                <button
+                  type="button"
+                  className={cx(styles.button, styles.buttonGhost, styles.translationButton)}
+                  onClick={() => createTranslationDraft(prop, 'de')}
+                  disabled={isCloningDe}
+                >
+                  {isCloningDe ? <Loader2 size={16} className={styles.spin} /> : <Globe2 size={16} />}
+                  DE koncept
                 </button>
               </div>
             </div>
@@ -1720,9 +1828,10 @@ const AdminPage = () => {
                     Live update
                   </span>
                 </div>
-                <h2 className={styles.modalTitle}>{editing.name}</h2>
+                <h2 className={styles.modalTitle}>{getDisplayPropertyName(editing)}</h2>
                 <div className={styles.modalMeta}>
-                  {editing.location ? <span className={styles.helperBadge}>{editing.location}</span> : null}
+                  <span className={styles.helperBadge}>{getDisplayPropertyLocation(editing)}</span>
+                  {editing.draft ? <span className={styles.helperBadge}>Koncept</span> : null}
                   <span className={styles.helperBadge}>
                     {(editing.images?.length || 0) + (editing.videos?.length || 0) + editFiles.length} media
                   </span>
@@ -1746,7 +1855,11 @@ const AdminPage = () => {
                     <div className={styles.modalBlockHeader}>
                       <div>
                         <h3 className={styles.modalBlockTitle}>Detaily nabidky</h3>
-                        <p className={styles.modalBlockText}>Uprav text, cenu i tag. Zmeny se ulozi do aktualni jazykove mutace.</p>
+                        <p className={styles.modalBlockText}>
+                          {editing.draft
+                            ? 'Tohle je koncept prekladu. Jakmile doplnis nazev, lokaci a cenu, prestane se schovavat jako draft.'
+                            : 'Uprav text, cenu i tag. Zmeny se ulozi do aktualni jazykove mutace.'}
+                        </p>
                       </div>
                       <span className={styles.helperBadge}>{lang.toUpperCase()}</span>
                     </div>

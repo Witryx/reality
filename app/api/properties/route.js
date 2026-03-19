@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from 'next/server';
 import {
+  clonePropertyTranslationDraft,
   createProperty,
   deleteProperty,
   fetchProperties,
@@ -80,6 +81,8 @@ const validatePayload = (payload = {}) => {
   normalized.videos = Array.isArray(payload?.videos) ? payload.videos.filter(Boolean) : payload?.videos || null;
   normalized.image = payload?.image || null;
   normalized.sold = Boolean(payload?.sold);
+  normalized.draft = Boolean(payload?.draft);
+  normalized.sourcePropertyId = payload?.sourcePropertyId ?? null;
 
   return { errors, normalized };
 };
@@ -88,9 +91,10 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const langParam = searchParams.get('lang');
   const language = langParam && langParam !== 'all' ? langParam : null;
+  const includeDrafts = searchParams.get('includeDrafts') === '1' && Boolean(requireAdminSession(request));
 
   try {
-    const properties = await fetchProperties(language);
+    const properties = await fetchProperties(language, { includeDrafts });
     return NextResponse.json({ properties });
   } catch (error) {
     console.error('GET /api/properties', error);
@@ -112,6 +116,52 @@ export async function POST(request) {
     payload = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+  }
+
+  if (payload?.cloneFromId || payload?.targetLanguage) {
+    try {
+      const { property, created } = await clonePropertyTranslationDraft(
+        payload?.cloneFromId,
+        payload?.targetLanguage
+      );
+
+      return NextResponse.json(
+        {
+          property,
+          created,
+          alreadyExists: !created,
+        },
+        { status: created ? 201 : 200 }
+      );
+    } catch (error) {
+      console.error('POST /api/properties clone', error);
+      if (
+        error.message &&
+        [
+          'Invalid source property id.',
+          'Missing target language.',
+          'Invalid target language.',
+          'Only CZ properties can be cloned.',
+          'Target language must differ from source language.',
+        ].includes(error.message)
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      if (error.message === 'Source property not found.') {
+        return NextResponse.json({ error: error.message }, { status: 404 });
+      }
+      if (error.message?.includes('Missing Postgres connection string')) {
+        return NextResponse.json(
+          { error: 'Missing database connection (POSTGRES_URL).' },
+          { status: 503 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to clone property.', detail: error.message },
+        { status: 500 }
+      );
+    }
   }
 
   const { errors, normalized } = validatePayload(payload);

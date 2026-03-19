@@ -140,6 +140,9 @@ const toMediaItems = (item) => {
   return media;
 };
 
+const getUniquePropertyMergeKey = (item = {}) =>
+  item?.id ? `id:${item.id}` : `${String(item?.name || "").trim()}|${String(item?.location || "").trim()}|${String(item?.language || "cz").trim()}`;
+
 const loadingCopy = {
   cz: "Nacitam nabidku...",
   en: "Loading listings...",
@@ -271,7 +274,7 @@ const Properties = ({ t, language = "cz" }) => {
     };
 
     const filterByLanguage = (list = []) =>
-      list.filter((item) => !item?.language || item.language === language);
+      list.filter((item) => !item?.draft && (!item?.language || item.language === language));
 
     const load = async () => {
       setLoading(true);
@@ -291,7 +294,7 @@ const Properties = ({ t, language = "cz" }) => {
         const unique = new Map();
         [...apiList, ...staticList, ...fallback].forEach((item) => {
           if (!item) return;
-          const key = `${String(item.name || "").trim()}|${String(item.location || "").trim()}`;
+          const key = getUniquePropertyMergeKey(item);
           if (!unique.has(key)) unique.set(key, item);
         });
         const combined = Array.from(unique.values());

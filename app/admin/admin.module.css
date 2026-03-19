@@ -778,6 +778,7 @@
 
 .previewBadge,
 .stateBadge,
+.draftBadge,
 .tagBadge,
 .mediaBadge {
   position: absolute;
@@ -1004,6 +1005,14 @@
   border: 1px solid rgba(217, 179, 106, 0.36);
 }
 
+.draftBadge {
+  top: 56px;
+  left: 14px;
+  background: rgba(255, 247, 219, 0.94);
+  color: #0b2338;
+  border: 1px solid rgba(240, 199, 123, 0.52);
+}
+
 .mediaBadge {
   left: 14px;
   bottom: 14px;
@@ -1037,6 +1046,11 @@
   line-height: 1.5;
 }
 
+.propertyMuted {
+  color: rgba(11, 35, 56, 0.52);
+  font-style: italic;
+}
+
 .propertyPrice {
   flex-shrink: 0;
   padding: 10px 14px;
@@ -1045,6 +1059,12 @@
   color: #fff;
   font-weight: 800;
   box-shadow: 0 16px 30px rgba(7, 23, 40, 0.22);
+}
+
+.propertyPriceMuted {
+  background: rgba(242, 223, 195, 0.76);
+  color: #0b2338;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
 }
 
 .propertyMeta {
@@ -1067,13 +1087,15 @@
 }
 
 .orderRow,
+.translationRow,
 .orderActions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.orderRow {
+.orderRow,
+.translationRow {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
@@ -1088,7 +1110,14 @@
   font-weight: 700;
 }
 
-.orderActions {
+.translationText {
+  color: rgba(11, 35, 56, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.orderActions,
+.translationActions {
   justify-content: flex-end;
 }
 
@@ -1096,6 +1125,10 @@
   min-width: 48px;
   padding-left: 12px;
   padding-right: 12px;
+}
+
+.translationButton {
+  min-width: 128px;
 }
 
 .emptyState,
@@ -1308,6 +1341,7 @@
   .heroActions,
   .propertyActions,
   .orderRow,
+  .translationRow,
   .modalActions,
   .pagination {
     flex-direction: column;
@@ -1316,12 +1350,14 @@
   .heroActions .button,
   .propertyActions .button,
   .orderActions .button,
+  .translationActions .button,
   .modalActions .button,
   .paginationButton {
     width: 100%;
   }
 
-  .orderActions {
+  .orderActions,
+  .translationActions {
     width: 100%;
   }
 
