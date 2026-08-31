@@ -162,6 +162,21 @@ const moveItem = (list = [], fromIndex, toIndex) => {
   return next;
 };
 
+const moveImageFile = (files = [], fileIndex, direction) => {
+  const imageIndexes = files.reduce((indexes, file, index) => {
+    if (isImageFile(file)) indexes.push(index);
+    return indexes;
+  }, []);
+  const imagePosition = imageIndexes.indexOf(fileIndex);
+  const targetPosition = imagePosition + direction;
+
+  if (imagePosition < 0 || targetPosition < 0 || targetPosition >= imageIndexes.length) {
+    return [...files];
+  }
+
+  return moveItem(files, fileIndex, imageIndexes[targetPosition]);
+};
+
 const readJsonSafe = async (res) => {
   try {
     return await res.json();
@@ -685,6 +700,7 @@ const AdminPage = () => {
         pendingFiles: newFiles,
         uploadedImages,
       });
+      const orderedImages = coverImage ? withCoverFirst(uploadedImages, coverImage) : uploadedImages;
       const payload = {
         ...newProperty,
         language: lang,
@@ -692,7 +708,7 @@ const AdminPage = () => {
         rooms: toTextOrNull(newProperty.rooms),
         tag: newProperty.tag || 'Nova',
         description: newProperty.description || '',
-        images: uploadedImages,
+        images: orderedImages,
         videos: uploadedVideos,
         image: coverImage,
       };
@@ -838,6 +854,61 @@ const AdminPage = () => {
     });
   };
 
+  const reorderExistingImage = (target, direction) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const images = Array.isArray(prev.images) ? prev.images : [];
+      const nextIndex = target + direction;
+      if (nextIndex < 0 || nextIndex >= images.length) return prev;
+
+      const nextImages = moveItem(images, target, nextIndex);
+      return { ...prev, images: nextImages, image: nextImages[0] || null };
+    });
+  };
+
+  const setExistingCover = (target) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const images = Array.isArray(prev.images) ? prev.images : [];
+      if (!images[target]) return prev;
+
+      const nextImages = moveItem(images, target, 0);
+      return { ...prev, images: nextImages, image: nextImages[0] || null };
+    });
+  };
+
+  const reorderPendingNewImage = (target, direction) => {
+    const nextFiles = moveImageFile(newFiles, target, direction);
+    setNewFiles(nextFiles);
+    const firstImage = nextFiles.find(isImageFile);
+    setNewCoverSelection(firstImage ? getPendingCoverValue(firstImage) : null);
+  };
+
+  const setPendingNewCover = (target) => {
+    const firstImageIndex = newFiles.findIndex(isImageFile);
+    const selectedFile = newFiles[target];
+    if (firstImageIndex < 0 || !isImageFile(selectedFile)) return;
+
+    const nextFiles = moveItem(newFiles, target, firstImageIndex);
+    setNewFiles(nextFiles);
+    setNewCoverSelection(getPendingCoverValue(selectedFile));
+  };
+
+  const reorderPendingEditImage = (target, direction) => {
+    setEditFiles((files) => moveImageFile(files, target, direction));
+  };
+
+  const setPendingEditCover = (target) => {
+    const selectedFile = editFiles[target];
+    const firstImageIndex = editFiles.findIndex(isImageFile);
+    if (firstImageIndex < 0 || !isImageFile(selectedFile)) return;
+
+    setEditFiles((files) => moveItem(files, target, firstImageIndex));
+    setEditing((prev) =>
+      prev ? { ...prev, image: getPendingCoverValue(selectedFile) } : prev
+    );
+  };
+
   const removeExistingVideo = (target) => {
     setEditing((prev) => {
       if (!prev) return prev;
@@ -904,6 +975,7 @@ const AdminPage = () => {
         pendingFiles: editFiles,
         uploadedImages,
       });
+      const orderedImages = coverImage ? withCoverFirst(mergedImages, coverImage) : mergedImages;
       const hasRequiredListingFields =
         Boolean(String(editing.name || '').trim()) &&
         Boolean(String(editing.location || '').trim()) &&
@@ -920,7 +992,7 @@ const AdminPage = () => {
         rooms: toTextOrNull(editing.rooms),
         tag: editing.tag || (nextDraft ? null : 'Nova'),
         description: editing.description || '',
-        images: mergedImages,
+        images: orderedImages,
         videos: mergedVideos,
         image: coverImage,
         sold: Boolean(editing.sold),
@@ -1053,7 +1125,19 @@ const AdminPage = () => {
     );
   };
 
-  const renderPendingPreviewCard = ({ src, file, selected, onSelect, onRemove, alt }) => {
+  const renderPendingPreviewCard = ({
+    src,
+    file,
+    selected,
+    position,
+    canMoveUp,
+    canMoveDown,
+    onMoveUp,
+    onMoveDown,
+    onSelect,
+    onRemove,
+    alt,
+  }) => {
     const isVideo = file?.type?.startsWith('video/');
 
     return (
@@ -1063,18 +1147,28 @@ const AdminPage = () => {
         ) : (
           <img src={src} alt={alt} className={styles.previewMedia} />
         )}
-        <span className={styles.previewBadge}>{isVideo ? 'Video' : 'Foto'}</span>
+        <span className={styles.previewBadge}>{isVideo ? 'Video' : `Foto ${position}`}</span>
         <button type="button" onClick={onRemove} className={styles.previewRemove}>
           <X size={14} />
         </button>
         {!isVideo ? (
-          <button
-            type="button"
-            onClick={onSelect}
-            className={cx(styles.coverButton, selected && styles.coverButtonActive)}
-          >
-            {selected ? 'Titulka' : 'Nastavit titulku'}
-          </button>
+          <>
+            <div className={styles.mediaOrderControls}>
+              <button type="button" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Posunout fotku dopredu">
+                <ArrowUp size={14} />
+              </button>
+              <button type="button" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Posunout fotku dozadu">
+                <ArrowDown size={14} />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onSelect}
+              className={cx(styles.coverButton, selected && styles.coverButtonActive)}
+            >
+              {selected ? 'Titulka' : 'Nastavit titulku'}
+            </button>
+          </>
         ) : null}
       </div>
     );
@@ -1611,7 +1705,7 @@ const AdminPage = () => {
                     <div className={styles.sectionTitleWrap}>
                       <span className={styles.helperBadge}>Prehled nahravky</span>
                       <p className={styles.sectionDescription}>
-                        U fotek muzes hned vybrat titulni snimek. Nepotrebne soubory klidne vyhod jeste pred ulozenim.
+                        Sipkami nastav poradi fotek. Prvni fotka je titulni; jinou muzes na prvni misto presunout i tlacitkem titulky.
                       </p>
                     </div>
                     <span className={styles.helperBadge}>{newFiles.length} souboru</span>
@@ -1625,7 +1719,12 @@ const AdminPage = () => {
                         selected:
                           isImageFile(newFiles[idx]) &&
                           newCoverSelection === getPendingCoverValue(newFiles[idx]),
-                        onSelect: () => setNewCoverSelection(getPendingCoverValue(newFiles[idx])),
+                        position: newFiles.slice(0, idx + 1).filter(isImageFile).length,
+                        canMoveUp: newFiles.slice(0, idx).some(isImageFile),
+                        canMoveDown: newFiles.slice(idx + 1).some(isImageFile),
+                        onMoveUp: () => reorderPendingNewImage(idx, -1),
+                        onMoveDown: () => reorderPendingNewImage(idx, 1),
+                        onSelect: () => setPendingNewCover(idx),
                         onRemove: () => removePendingNewFile(idx),
                         alt: `Nahrane medium ${idx + 1}`,
                       })
@@ -1967,7 +2066,7 @@ const AdminPage = () => {
                           <div className={styles.sectionTitleWrap}>
                             <span className={styles.helperBadge}>Nove soubory</span>
                             <p className={styles.sectionDescription}>
-                              Vyber titulku jeste pred ulozenim. Pokud uz mas zvolenou stavajici fotku, muzes ji nahradit novou.
+                              Sipkami serad nove fotky jeste pred ulozenim. Zvolena titulka se ulozi jako prvni fotografie galerie.
                             </p>
                           </div>
                           <span className={styles.helperBadge}>{editFiles.length} souboru</span>
@@ -1981,10 +2080,12 @@ const AdminPage = () => {
                               selected:
                                 isImageFile(editFiles[idx]) &&
                                 editing.image === getPendingCoverValue(editFiles[idx]),
-                              onSelect: () =>
-                                setEditing((prev) =>
-                                  prev ? { ...prev, image: getPendingCoverValue(editFiles[idx]) } : prev
-                                ),
+                              position: editFiles.slice(0, idx + 1).filter(isImageFile).length,
+                              canMoveUp: editFiles.slice(0, idx).some(isImageFile),
+                              canMoveDown: editFiles.slice(idx + 1).some(isImageFile),
+                              onMoveUp: () => reorderPendingEditImage(idx, -1),
+                              onMoveDown: () => reorderPendingEditImage(idx, 1),
+                              onSelect: () => setPendingEditCover(idx),
                               onRemove: () => removePendingEditFile(idx),
                               alt: `Nove medium ${idx + 1}`,
                             })
@@ -2000,7 +2101,7 @@ const AdminPage = () => {
                     <div className={styles.modalBlockHeader}>
                       <div>
                         <h3 className={styles.modalBlockTitle}>Aktualni fotky</h3>
-                        <p className={styles.modalBlockText}>Kliknutim na tlacitko zvolis titulni obrazek. Krizek medium rovnou odstrani.</p>
+                        <p className={styles.modalBlockText}>Sipkami menis poradi galerie. Fotka cislo 1 je titulni; krizek ji odstrani.</p>
                       </div>
                       <span className={styles.helperBadge}>{editing.images?.length || 0} fotek</span>
                     </div>
@@ -2015,9 +2116,28 @@ const AdminPage = () => {
                           )}
                         >
                           <img src={src} alt={`Foto ${idx + 1}`} className={styles.savedMediaImage} />
+                          <span className={styles.previewBadge}>Foto {idx + 1}</span>
+                          <div className={styles.mediaOrderControls}>
+                            <button
+                              type="button"
+                              onClick={() => reorderExistingImage(idx, -1)}
+                              disabled={idx === 0}
+                              aria-label="Posunout fotku dopredu"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => reorderExistingImage(idx, 1)}
+                              disabled={idx === (editing.images?.length || 0) - 1}
+                              aria-label="Posunout fotku dozadu"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setEditing((prev) => (prev ? { ...prev, image: src } : prev))}
+                            onClick={() => setExistingCover(idx)}
                             className={cx(
                               styles.coverButton,
                               editing.image === src && styles.coverButtonActive

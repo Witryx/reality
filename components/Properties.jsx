@@ -1,6 +1,11 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Bed, ChevronDown, ChevronLeft, ChevronRight, Mail, MapPin, Maximize, Maximize2, Phone, X } from "lucide-react";
+import { ArrowRight, Bed, Check, ChevronDown, ChevronLeft, ChevronRight, Mail, MapPin, Maximize, Maximize2, Phone, Share2, X } from "lucide-react";
 import SectionHeader from "./SectionHeader";
+import {
+  getPropertyIdFromSlug,
+  getPropertyPath,
+  getPropertySlugFromPathname,
+} from "../lib/propertyUrl";
 
 const LISTINGS_PER_PAGE = 6;
 const PRICE_FILTERS = {
@@ -173,6 +178,12 @@ const noImageCopy = {
   de: "Kein Bild",
 };
 
+const shareCopy = {
+  cz: { button: "Sdílet nabídku", copied: "Odkaz zkopírován", text: "Podívejte se na tuto nabídku" },
+  en: { button: "Share listing", copied: "Link copied", text: "Take a look at this listing" },
+  de: { button: "Angebot teilen", copied: "Link kopiert", text: "Sehen Sie sich dieses Angebot an" },
+};
+
 const paginationCopy = {
   cz: {
     prev: "Predchozi strana",
@@ -211,6 +222,7 @@ const Properties = ({ t, language = "cz" }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [priceFilter, setPriceFilter] = useState("all");
   const [priceMenuOpen, setPriceMenuOpen] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
   const filterBarRef = useRef(null);
   const priceMenuRef = useRef(null);
   const shouldScrollToFiltersRef = useRef(false);
@@ -255,6 +267,7 @@ const Properties = ({ t, language = "cz" }) => {
     setActiveImageIndex(0);
     setDescriptionExpanded(false);
     setIsLightboxOpen(false);
+    setShareStatus("");
     if (selected) {
       document.body.classList.add("detail-open");
     } else {
@@ -386,6 +399,7 @@ const Properties = ({ t, language = "cz" }) => {
   const startItem = filteredListings.length ? (safeCurrentPage - 1) * LISTINGS_PER_PAGE + 1 : 0;
   const endItem = filteredListings.length ? Math.min(safeCurrentPage * LISTINGS_PER_PAGE, filteredListings.length) : 0;
   const pageText = paginationCopy[language] || paginationCopy.en;
+  const activeShareCopy = shareCopy[language] || shareCopy.en;
   const selectedMedia = useMemo(() => (selected ? toMediaItems(selected) : []), [selected]);
   const totalMedia = selectedMedia.length;
   const hasGallery = totalMedia > 1;
@@ -400,6 +414,85 @@ const Properties = ({ t, language = "cz" }) => {
     if (!totalMedia) return;
     setActiveImageIndex((idx) => (idx - 1 + totalMedia) % totalMedia);
   }, [totalMedia]);
+
+  const openProperty = useCallback((property) => {
+    if (!property) return;
+    const nextPath = getPropertyPath(property, language);
+    window.history.pushState(
+      { ...window.history.state, propertyModal: true },
+      "",
+      nextPath
+    );
+    setSelected(property);
+  }, [language]);
+
+  const closeProperty = useCallback(() => {
+    setIsLightboxOpen(false);
+    if (window.history.state?.propertyModal) {
+      window.history.back();
+      return;
+    }
+
+    window.history.replaceState({ ...window.history.state, propertyModal: false }, "", "/");
+    setSelected(null);
+  }, []);
+
+  const shareProperty = useCallback(async () => {
+    if (!selected) return;
+
+    const relativePath = getPropertyPath(selected, language);
+    const url = new URL(relativePath, window.location.origin).toString();
+    const shareData = {
+      title: selected.name,
+      text: `${activeShareCopy.text}: ${selected.name}`,
+      url,
+    };
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareStatus("copied");
+      window.setTimeout(() => setShareStatus(""), 2400);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = url;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      setShareStatus("copied");
+      window.setTimeout(() => setShareStatus(""), 2400);
+    }
+  }, [activeShareCopy.text, language, selected]);
+
+  useEffect(() => {
+    const syncPropertyFromUrl = () => {
+      const pathnameSlug = getPropertySlugFromPathname(window.location.pathname);
+      const routeId = getPropertyIdFromSlug(pathnameSlug || "");
+
+      if (!routeId) {
+        setSelected(null);
+        return;
+      }
+
+      const match = listings.find((property) => Number(property?.id) === routeId);
+      if (match) setSelected(match);
+    };
+
+    syncPropertyFromUrl();
+    window.addEventListener("popstate", syncPropertyFromUrl);
+    return () => window.removeEventListener("popstate", syncPropertyFromUrl);
+  }, [listings]);
 
   useEffect(() => {
     if (!isLightboxOpen) return;
@@ -571,14 +664,19 @@ const Properties = ({ t, language = "cz" }) => {
                     </span>
                   ) : null}
                 </div>
-                <button
+                <a
                   className="btn-secondary"
                   style={{ width: "fit-content", marginTop: 6 }}
-                  onClick={() => setSelected(property)}
+                  href={getPropertyPath(property, language)}
+                  onClick={(event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    openProperty(property);
+                  }}
                 >
                   {t.properties.detail}
                   <ArrowRight size={15} />
-                </button>
+                </a>
               </div>
             </article>
           ))}
@@ -632,9 +730,9 @@ const Properties = ({ t, language = "cz" }) => {
       </div>
 
       {selected && (
-        <div className="detail-overlay" onClick={() => setSelected(null)}>
+        <div className="detail-overlay" onClick={closeProperty}>
           <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => setSelected(null)}>x</button>
+            <button className="close-btn" onClick={closeProperty} type="button" aria-label={language === "cz" ? "Zavřít detail" : language === "de" ? "Detail schließen" : "Close detail"}><X size={18} /></button>
             <div className="detail-grid">
                 <div className="detail-image">
                   <div className="detail-image-main">
@@ -741,9 +839,17 @@ const Properties = ({ t, language = "cz" }) => {
                   })()}
                 </div>
                 <div style={{ display: "grid", gap: 12 }}>
+                  <button
+                    className="btn-secondary detail-share-button"
+                    type="button"
+                    onClick={shareProperty}
+                  >
+                    {shareStatus === "copied" ? <Check size={17} /> : <Share2 size={17} />}
+                    {shareStatus === "copied" ? activeShareCopy.copied : activeShareCopy.button}
+                  </button>
                   <a
                     className="btn-primary"
-                    href="https://wa.me/420723063837"
+                    href={`https://wa.me/420723063837?text=${encodeURIComponent(`${selected.name}\n${new URL(getPropertyPath(selected, language), "https://egyptskoceskareality.cz").toString()}`)}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{

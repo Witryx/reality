@@ -26,10 +26,19 @@ export const globalStyles = `
   }
 
   * { box-sizing: border-box; }
-  html { scroll-behavior: auto; }
+  html {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    scroll-behavior: auto;
+    overscroll-behavior-x: none;
+  }
 
   body {
     margin: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     background:
       radial-gradient(120% 80% at 12% 18%, rgba(31,186,198,0.14), transparent 48%),
       radial-gradient(120% 80% at 84% 10%, rgba(217,179,106,0.14), transparent 52%),
@@ -48,6 +57,9 @@ export const globalStyles = `
   button { font-family: inherit; }
 
   .page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     min-height: 100vh;
     background:
       radial-gradient(120% 90% at 16% 24%, rgba(31,186,198,0.08), transparent 42%),
@@ -265,7 +277,8 @@ export const globalStyles = `
   }
   .nav-actions { display: flex; align-items: center; gap: 14px; }
 
-  .nav-left { display: flex; align-items: center; gap: 14px; }
+  .nav-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .brand-copy { min-width: 0; }
   .brand-mark {
     width: 46px; height: 46px;
     border-radius: 12px;
@@ -292,6 +305,7 @@ export const globalStyles = `
     height: 72px;
     display: grid;
     place-items: center;
+    flex: 0 0 auto;
   }
 
   .brand-logo img {
@@ -1064,6 +1078,11 @@ export const globalStyles = `
     align-self: start;
   }
 
+  .detail-share-button {
+    width: 100%;
+    justify-content: center;
+  }
+
   body.detail-open {
     overflow: hidden;
     touch-action: none;
@@ -1160,7 +1179,10 @@ export const globalStyles = `
 
   @media (max-width: 720px) {
     .brand-logo {
-      display: none;
+      display: grid;
+      width: 48px;
+      height: 48px;
+      flex-basis: 48px;
     }
     .detail-overlay {
       padding: calc(24px + env(safe-area-inset-top, 0px)) 12px 16px;
@@ -1724,7 +1746,8 @@ export const globalStyles = `
     .nav { padding: 10px 14px; gap: 12px; }
     .nav-actions { gap: 10px; }
     .brand-mark { width: 40px; height: 40px; }
-    .brand-name { font-size: 18px; }
+    .brand-name { font-size: clamp(14px, 4.4vw, 18px); white-space: nowrap; }
+    .brand-copy > div:last-child { font-size: 11px !important; white-space: nowrap; }
     .btn-row { width: 100%; flex-direction: column; align-items: stretch; }
     .btn-primary, .btn-secondary { flex: 1; justify-content: center; width: 100%; }
     .listing-thumb { height: 200px; }
@@ -1758,6 +1781,10 @@ export const globalStyles = `
   }
 
   @media (max-width: 540px) {
+    .nav { padding-left: 10px; padding-right: 10px; }
+    .nav-left { gap: 8px; }
+    .brand-logo { width: 42px; height: 42px; flex-basis: 42px; }
+    .menu-toggle { padding: 9px 10px; }
     .contact-grid { gap: 10px; padding: 0 12px; }
     .contact-card { padding: 14px 12px; gap: 8px; border-radius: 14px; }
     .contact-actions { justify-content: center; }

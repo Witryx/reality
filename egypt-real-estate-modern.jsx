@@ -24,8 +24,8 @@ const contactMailError = {
   de: 'Mail-App konnte nicht geoeffnet werden. Bitte schreiben Sie an Info@egyptskoceskareality.cz.',
 };
 
-const EgyptRealEstate = () => {
-  const [language, setLanguage] = useState('cz');
+const EgyptRealEstate = ({ initialLanguage = 'cz' }) => {
+  const [language, setLanguage] = useState(initialLanguage);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',

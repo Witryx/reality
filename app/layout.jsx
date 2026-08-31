@@ -1,4 +1,5 @@
 export const metadata = {
+  metadataBase: new URL('https://egyptskoceskareality.cz'),
   title: 'Egyptsko Česká Reality',
   description: 'Nemovitosti v Egyptě',
   manifest: '/site.webmanifest',

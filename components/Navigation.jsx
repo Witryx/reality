@@ -17,7 +17,7 @@ const Navigation = ({
         <div className="brand-logo">
           <img src="/MAINLOGO.png" alt="Egyptsko Ceska Reality logo" />
         </div>
-        <div>
+        <div className="brand-copy">
           <div className="brand-name">Egyptsko Česká Reality</div>
           <div style={{ color: 'var(--muted)', fontSize: 13 }}>Hurghada · Nemovitosti</div>
         </div>
