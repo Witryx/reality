@@ -83,6 +83,9 @@ const validatePayload = (payload = {}) => {
   normalized.sold = Boolean(payload?.sold);
   normalized.draft = Boolean(payload?.draft);
   normalized.sourcePropertyId = payload?.sourcePropertyId ?? null;
+  const fallbackPropertyId = normalizeOptionalInteger(payload?.fallbackPropertyId);
+  if (fallbackPropertyId.error) errors.push('fallbackPropertyId');
+  normalized.fallbackPropertyId = fallbackPropertyId.value;
 
   return { errors, normalized };
 };

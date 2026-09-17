@@ -1,6 +1,7 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Bed, Check, ChevronDown, ChevronLeft, ChevronRight, Mail, MapPin, Maximize, Maximize2, Phone, Share2, X } from "lucide-react";
 import SectionHeader from "./SectionHeader";
+import { mergePropertySources } from "../lib/propertyIdentity";
 import {
   getPropertyIdFromSlug,
   getPropertyPath,
@@ -144,9 +145,6 @@ const toMediaItems = (item) => {
   ];
   return media;
 };
-
-const getUniquePropertyMergeKey = (item = {}) =>
-  item?.id ? `id:${item.id}` : `${String(item?.name || "").trim()}|${String(item?.location || "").trim()}|${String(item?.language || "cz").trim()}`;
 
 const loadingCopy = {
   cz: "Nacitam nabidku...",
@@ -304,13 +302,7 @@ const Properties = ({ t, language = "cz" }) => {
         const staticList = filterByLanguage(readList(staticData));
         const fallback = Array.isArray(t?.properties?.items) ? t.properties.items : [];
 
-        const unique = new Map();
-        [...apiList, ...staticList, ...fallback].forEach((item) => {
-          if (!item) return;
-          const key = getUniquePropertyMergeKey(item);
-          if (!unique.has(key)) unique.set(key, item);
-        });
-        const combined = Array.from(unique.values());
+        const combined = mergePropertySources(apiList, [...staticList, ...fallback]);
         setData(splitProperties(combined));
       } catch (error) {
         if (error.name === "AbortError") return;
@@ -618,7 +610,7 @@ const Properties = ({ t, language = "cz" }) => {
 
         <div className="listing-grid">
           {paginatedListings.map((property) => (
-            <article key={property.id || property.name} className="listing-card">
+            <article key={`${property.persisted ? 'stored' : 'static'}:${property.id || property.name}`} className="listing-card">
               <div className="listing-thumb">
                 {(() => {
                   const imgs = toImages(property.images);

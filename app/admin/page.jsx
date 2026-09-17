@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import styles from './admin.module.css';
 import { globalStyles } from '../../styles/globalStyles';
+import { getPropertyKey, mergePropertySources, replaceProperty } from '../../lib/propertyIdentity';
 
 const ADMIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_ADMIN === '1';
 const languages = ['cz', 'en', 'de'];
@@ -152,7 +153,6 @@ const toTextOrNull = (value) => {
 };
 
 const toInputValue = (value) => (value == null ? '' : String(value));
-const getPropertyKey = (prop = {}) => (prop?.id ? `id-${prop.id}` : `name-${prop?.name}|${prop?.location}`);
 
 const moveItem = (list = [], fromIndex, toIndex) => {
   if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return [...list];
@@ -234,9 +234,6 @@ const normalizeEditableProperty = (prop = {}) => {
     image: coverImage,
   };
 };
-
-const getUniquePropertyMergeKey = (prop = {}) =>
-  prop?.id ? `id:${prop.id}` : `${String(prop?.name || '').trim()}|${String(prop?.location || '').trim()}|${String(prop?.language || 'cz').trim()}`;
 
 const getDisplayPropertyName = (prop = {}) => {
   const value = String(prop?.name || '').trim();
@@ -476,13 +473,7 @@ const AdminPage = () => {
       if (!res.ok) throw new Error(data?.detail || data?.error || 'Nepodarilo se nacist data.');
       const apiList = Array.isArray(data.properties) ? data.properties : [];
       const staticList = await loadStaticProperties(currentLang);
-      const unique = new Map();
-      [...apiList, ...staticList].forEach((item) => {
-        if (!item) return;
-        const key = getUniquePropertyMergeKey(item);
-        if (!unique.has(key)) unique.set(key, item);
-      });
-      const combined = Array.from(unique.values());
+      const combined = mergePropertySources(apiList, staticList);
       const nextProperties = combined.length ? splitProperties(combined) : fallbackSplit;
       setProperties(nextProperties);
       return combined;
@@ -490,8 +481,9 @@ const AdminPage = () => {
       setError(err.message || 'Nepodarilo se nacist data.');
       const staticList = await loadStaticProperties(currentLang);
       if (staticList.length) {
-        setProperties(splitProperties(staticList));
-        return staticList;
+        const fallback = mergePropertySources([], staticList);
+        setProperties(splitProperties(fallback));
+        return fallback;
       } else {
         setProperties(fallbackSplit);
         return [];
@@ -504,6 +496,7 @@ const AdminPage = () => {
   const createFromFallback = async (prop, sold = false) => {
     const payload = {
       ...prop,
+      fallbackPropertyId: prop.fallbackPropertyId || prop.id,
       language: lang,
       sqm: toNumberOrNull(prop.sqm),
       rooms: toTextOrNull(prop.rooms),
@@ -547,9 +540,11 @@ const AdminPage = () => {
   };
 
   const ensurePersistedProperty = async (prop) => {
-    if (prop?.id && prop?.created_at) return prop;
     if (prop?.id && prop?.persisted) return prop;
-    return createFromFallback(prop, Boolean(prop?.sold));
+    const created = await createFromFallback(prop, Boolean(prop?.sold));
+    const persisted = { ...created, persisted: true };
+    applyUpdate(persisted);
+    return persisted;
   };
 
   const ensurePersistedProperties = async (list = []) => {
@@ -564,17 +559,7 @@ const AdminPage = () => {
     if (!updated) return;
     setProperties((prev) => {
       const all = [...(prev.active || []), ...(prev.sold || [])];
-      const updatedKey = getPropertyKey(updated);
-      const existingIndex = all.findIndex((item) => getPropertyKey(item) === updatedKey);
-      const merged = [...all];
-
-      if (existingIndex >= 0) {
-        merged[existingIndex] = updated;
-      } else {
-        merged.unshift(updated);
-      }
-
-      return splitProperties(merged);
+      return splitProperties(replaceProperty(all, { ...updated, persisted: true }));
     });
   };
 
@@ -589,7 +574,7 @@ const AdminPage = () => {
 
     try {
       const persistedBucket = await ensurePersistedProperties(sourceBucket);
-      const currentIndex = persistedBucket.findIndex((item) => getPropertyKey(item) === itemKey);
+      const currentIndex = sourceBucket.findIndex((item) => getPropertyKey(item) === itemKey);
 
       if (currentIndex < 0) {
         throw new Error('Nemovitost pro zmenu poradi nebyla nalezena.');
@@ -784,8 +769,8 @@ const AdminPage = () => {
       }
       if (!res.ok) throw new Error(data?.detail || data?.error || 'Smazani selhalo.');
       setProperties((prev) => ({
-        active: (prev.active || []).filter((item) => item.id !== ensured.id),
-        sold: (prev.sold || []).filter((item) => item.id !== ensured.id),
+        active: (prev.active || []).filter((item) => getPropertyKey(item) !== getPropertyKey(ensured)),
+        sold: (prev.sold || []).filter((item) => getPropertyKey(item) !== getPropertyKey(ensured)),
       }));
       setStatus('Nemovitost odstranena.');
     } catch (err) {
@@ -998,6 +983,7 @@ const AdminPage = () => {
         sold: Boolean(editing.sold),
         draft: nextDraft,
         sourcePropertyId: editing.sourcePropertyId ?? null,
+        fallbackPropertyId: editing.fallbackPropertyId ?? null,
       };
 
       const res = await fetch('/api/properties', {
